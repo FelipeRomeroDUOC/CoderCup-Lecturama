@@ -1,7 +1,9 @@
 export interface Chapter {
   id: string;
   title: string;
-  pageNumber: number;
+  pageNumber: number; // Start page
+  startPage: number;
+  endPage: number;
   items?: Chapter[];
 }
 

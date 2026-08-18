@@ -6,8 +6,8 @@ interface ChapterSidebarProps {
   chapters: Chapter[];
   hasOutline: boolean | null;
   isLoading: boolean;
-  currentPage: number;
-  onSelectChapter: (pageNumber: number) => void;
+  activeChapterId: string | null;
+  onSelectChapter: (chapter: Chapter) => void;
   isOpen: boolean;
   onToggle: () => void;
 }
@@ -16,50 +16,51 @@ export default function ChapterSidebar({
   chapters,
   hasOutline,
   isLoading,
-  currentPage,
+  activeChapterId,
   onSelectChapter,
   isOpen,
   onToggle,
 }: ChapterSidebarProps) {
-  // Helper to determine if a chapter is active (current page is at or past this chapter's start)
-  const isChapterActive = (chapter: Chapter, index: number, allChapters: Chapter[]): boolean => {
-    const nextChapter = allChapters[index + 1];
-    if (nextChapter) {
-      return currentPage >= chapter.pageNumber && currentPage < nextChapter.pageNumber;
-    }
-    return currentPage >= chapter.pageNumber;
-  };
-
   const renderChapterList = (items: Chapter[], depth = 0) => {
     return (
-      <ul className={`space-y-1 ${depth > 0 ? "pl-3 border-l border-zinc-200 dark:border-zinc-800 ml-1.5 mt-1" : ""}`}>
-        {items.map((chapter, idx) => {
-          const active = depth === 0 ? isChapterActive(chapter, idx, items) : currentPage === chapter.pageNumber;
+      <ul
+        className={`space-y-1 ${
+          depth > 0
+            ? "pl-3 border-l border-zinc-200 dark:border-zinc-800 ml-1.5 mt-1"
+            : ""
+        }`}
+      >
+        {items.map((chapter) => {
+          const isActive = activeChapterId === chapter.id;
 
           return (
             <li key={chapter.id}>
               <button
                 type="button"
-                onClick={() => onSelectChapter(chapter.pageNumber)}
+                onClick={() => onSelectChapter(chapter)}
                 className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors flex items-center justify-between gap-2 ${
-                  active
+                  isActive
                     ? "bg-zinc-900 text-white font-semibold dark:bg-zinc-100 dark:text-zinc-900"
                     : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800/60"
                 }`}
               >
                 <span className="truncate">{chapter.title}</span>
                 <span
-                  className={`text-xs px-1.5 py-0.5 rounded ${
-                    active
+                  className={`text-xs px-1.5 py-0.5 rounded shrink-0 ${
+                    isActive
                       ? "bg-zinc-800 text-zinc-300 dark:bg-zinc-200 dark:text-zinc-800"
                       : "text-zinc-500 bg-zinc-100 dark:bg-zinc-800"
                   }`}
                 >
-                  p. {chapter.pageNumber}
+                  {chapter.startPage === chapter.endPage
+                    ? `p. ${chapter.startPage}`
+                    : `pp. ${chapter.startPage}-${chapter.endPage}`}
                 </span>
               </button>
 
-              {chapter.items && chapter.items.length > 0 && renderChapterList(chapter.items, depth + 1)}
+              {chapter.items &&
+                chapter.items.length > 0 &&
+                renderChapterList(chapter.items, depth + 1)}
             </li>
           );
         })}
@@ -106,7 +107,7 @@ export default function ChapterSidebar({
             <div className="p-4 text-center space-y-2 text-zinc-500 text-sm">
               <p>Este PDF no contiene una tabla de contenidos / capítulos embebida.</p>
               <p className="text-xs text-zinc-400">
-                Puedes navegar entre las páginas usando los controles de lectura.
+                Puedes navegar libremente con el scroll continuo.
               </p>
             </div>
           ) : (

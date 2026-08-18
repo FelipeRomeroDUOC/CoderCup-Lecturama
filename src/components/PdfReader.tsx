@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import dynamic from "next/dynamic";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { useChapters } from "@/hooks/useChapters";
+import { Chapter } from "@/types/pdf";
 import ChapterSidebar from "@/components/ChapterSidebar";
 import PdfNavigation from "@/components/PdfNavigation";
 
-// Dynamically import PdfViewer with ssr: false to prevent SSR canvas issues
 const PdfViewer = dynamic(() => import("@/components/PdfViewer"), {
   ssr: false,
   loading: () => (
@@ -28,6 +28,8 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
   const [numPages, setNumPages] = useState<number>(1);
   const [scale, setScale] = useState<number>(1.0);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
+  const [activeChapterId, setActiveChapterId] = useState<string | null>(null);
+  const [scrollToPage, setScrollToPage] = useState<number | undefined>(undefined);
 
   const {
     chapters,
@@ -38,18 +40,91 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
 
   const handleDocumentLoadSuccess = (pdf: PDFDocumentProxy) => {
     setNumPages(pdf.numPages);
-    extractChapters(pdf);
+    extractChapters(pdf, pdf.numPages);
   };
 
-  const handlePageChange = (newPage: number) => {
-    if (newPage >= 1 && newPage <= numPages) {
-      setCurrentPage(newPage);
+  // Flattened list of chapters for linear navigation (next / previous)
+  const flattenedChapters = useMemo(() => {
+    const list: Chapter[] = [];
+    const flatten = (items: Chapter[]) => {
+      for (const item of items) {
+        list.push(item);
+        if (item.items && item.items.length > 0) {
+          flatten(item.items);
+        }
+      }
+    };
+    flatten(chapters);
+    return list;
+  }, [chapters]);
+
+  // Current active chapter object
+  const activeChapter = useMemo(() => {
+    if (activeChapterId && flattenedChapters.length > 0) {
+      return (
+        flattenedChapters.find((c) => c.id === activeChapterId) ||
+        flattenedChapters[0]
+      );
     }
-  };
+    return flattenedChapters[0] || null;
+  }, [activeChapterId, flattenedChapters]);
 
-  const handleSelectChapter = (pageNumber: number) => {
-    handlePageChange(pageNumber);
-  };
+  // Current chapter index in flattened list
+  const currentChapterIndex = useMemo(() => {
+    if (!activeChapter) return -1;
+    return flattenedChapters.findIndex((c) => c.id === activeChapter.id);
+  }, [activeChapter, flattenedChapters]);
+
+  // Determine active start and end page
+  const startPage = activeChapter ? activeChapter.startPage : 1;
+  const endPage = activeChapter ? activeChapter.endPage : numPages;
+
+  const handleSelectChapter = useCallback((chapter: Chapter) => {
+    setActiveChapterId(chapter.id);
+    setCurrentPage(chapter.startPage);
+    setScrollToPage(chapter.startPage);
+  }, []);
+
+  const handleNextChapter = useCallback(() => {
+    if (
+      currentChapterIndex >= 0 &&
+      currentChapterIndex < flattenedChapters.length - 1
+    ) {
+      const nextChapter = flattenedChapters[currentChapterIndex + 1];
+      handleSelectChapter(nextChapter);
+    }
+  }, [currentChapterIndex, flattenedChapters, handleSelectChapter]);
+
+  const handlePrevChapter = useCallback(() => {
+    if (currentChapterIndex > 0) {
+      const prevChapter = flattenedChapters[currentChapterIndex - 1];
+      handleSelectChapter(prevChapter);
+    }
+  }, [currentChapterIndex, flattenedChapters, handleSelectChapter]);
+
+  // Jump to specific page: if it belongs to another chapter, switch chapter
+  const handlePageChange = useCallback(
+    (targetPage: number) => {
+      if (targetPage < 1 || targetPage > numPages) return;
+
+      const targetChapter = flattenedChapters.find(
+        (c) => targetPage >= c.startPage && targetPage <= c.endPage
+      );
+
+      if (targetChapter && targetChapter.id !== activeChapterId) {
+        setActiveChapterId(targetChapter.id);
+      }
+
+      setCurrentPage(targetPage);
+      setScrollToPage(targetPage);
+    },
+    [numPages, flattenedChapters, activeChapterId]
+  );
+
+  const handleVisiblePageChange = useCallback((pageNum: number) => {
+    setCurrentPage(pageNum);
+    setScrollToPage(undefined); // Clear requested scroll target once scrolling naturally
+  }, []);
 
   const zoomIn = () => setScale((prev) => Math.min(prev + 0.15, 2.0));
   const zoomOut = () => setScale((prev) => Math.max(prev - 0.15, 0.6));
@@ -57,7 +132,7 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
 
   return (
     <div className="flex flex-col h-screen w-full bg-zinc-50 dark:bg-zinc-950 overflow-hidden">
-      {/* Top Bar */}
+      {/* Top Header */}
       <header className="flex items-center justify-between px-4 py-2.5 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 z-20">
         <div className="flex items-center gap-3">
           <button
@@ -113,35 +188,47 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
         </div>
       </header>
 
-      {/* Main Content Area: Sidebar + Reader */}
+      {/* Body: Sidebar + Scrollable Reader */}
       <div className="flex flex-1 overflow-hidden relative">
         <ChapterSidebar
           chapters={chapters}
           hasOutline={hasOutline}
           isLoading={isLoadingChapters}
-          currentPage={currentPage}
+          activeChapterId={activeChapter?.id || null}
           onSelectChapter={handleSelectChapter}
           isOpen={isSidebarOpen}
           onToggle={() => setIsSidebarOpen((prev) => !prev)}
         />
 
         <div className="flex flex-col flex-1 h-full overflow-y-auto relative">
-          <main className="flex-1 p-4 md:p-6 pb-24 flex justify-center">
+          <main className="flex-1 pb-24">
             <PdfViewer
               file={file}
-              currentPage={currentPage}
+              startPage={startPage}
+              endPage={endPage}
               onDocumentLoadSuccess={handleDocumentLoadSuccess}
+              onVisiblePageChange={handleVisiblePageChange}
               scale={scale}
+              activeChapterTitle={activeChapter?.title}
+              hasNextChapter={
+                currentChapterIndex >= 0 &&
+                currentChapterIndex < flattenedChapters.length - 1
+              }
+              hasPrevChapter={currentChapterIndex > 0}
+              onNextChapter={handleNextChapter}
+              onPrevChapter={handlePrevChapter}
+              scrollToPage={scrollToPage}
             />
           </main>
 
-          {/* Sticky Bottom Navigation */}
+          {/* Sticky Bottom Navigation Bar */}
           <div className="sticky bottom-4 left-0 right-0 flex justify-center px-4 pointer-events-none z-10">
             <div className="pointer-events-auto">
               <PdfNavigation
                 currentPage={currentPage}
                 numPages={numPages}
                 onPageChange={handlePageChange}
+                activeChapterTitle={activeChapter?.title}
               />
             </div>
           </div>
