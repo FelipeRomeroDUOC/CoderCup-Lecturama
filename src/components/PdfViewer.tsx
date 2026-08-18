@@ -2,8 +2,10 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Page } from "react-pdf";
+import type { PDFDocumentProxy } from "pdfjs-dist";
 
 interface PdfViewerProps {
+  pdf: PDFDocumentProxy;
   startPage: number;
   endPage: number;
   onVisiblePageChange: (pageNumber: number) => void;
@@ -17,6 +19,7 @@ interface PdfViewerProps {
 }
 
 export default function PdfViewer({
+  pdf,
   startPage,
   endPage,
   onVisiblePageChange,
@@ -46,7 +49,7 @@ export default function PdfViewer({
     return () => window.removeEventListener("resize", updateWidth);
   }, [updateWidth]);
 
-  // Memoize page range for current chapter
+  // Memoize page range for the current chapter
   const pages = useMemo(() => {
     const count = Math.max(1, endPage - startPage + 1);
     return Array.from({ length: count }, (_, i) => startPage + i);
@@ -106,6 +109,7 @@ export default function PdfViewer({
           >
             <div className="shadow-lg rounded-lg overflow-hidden bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
               <Page
+                pdf={pdf}
                 pageNumber={pageNum}
                 width={containerWidth * scale}
                 renderTextLayer={true}

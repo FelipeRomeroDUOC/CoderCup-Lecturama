@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { Document, pdfjs } from "react-pdf";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { useChapters } from "@/hooks/useChapters";
@@ -11,8 +11,10 @@ import PdfViewer from "@/components/PdfViewer";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 
-// Configure PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+// Configure PDF.js worker on client side
+if (typeof window !== "undefined") {
+  pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+}
 
 interface PdfReaderProps {
   file: File;
@@ -20,13 +22,13 @@ interface PdfReaderProps {
 }
 
 export default function PdfReader({ file, onClose }: PdfReaderProps) {
+  const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [numPages, setNumPages] = useState<number>(1);
   const [scale, setScale] = useState<number>(1.0);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
   const [activeChapterId, setActiveChapterId] = useState<string | null>(null);
   const [scrollToPage, setScrollToPage] = useState<number | undefined>(undefined);
-  const [isDocLoaded, setIsDocLoaded] = useState<boolean>(false);
 
   const {
     chapters,
@@ -37,8 +39,8 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
 
   const handleDocumentLoadSuccess = useCallback(
     (pdf: PDFDocumentProxy) => {
+      setPdfDocument(pdf);
       setNumPages(pdf.numPages);
-      setIsDocLoaded(true);
       extractChapters(pdf, pdf.numPages);
     },
     [extractChapters]
@@ -218,9 +220,10 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
               </div>
             }
           >
-            {isDocLoaded && (
+            {pdfDocument && (
               <main className="flex-1 pb-24">
                 <PdfViewer
+                  pdf={pdfDocument}
                   startPage={startPage}
                   endPage={endPage}
                   onVisiblePageChange={handleVisiblePageChange}
@@ -240,7 +243,7 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
           </Document>
 
           {/* Sticky Bottom Navigation Bar */}
-          {isDocLoaded && (
+          {pdfDocument && (
             <div className="sticky bottom-4 left-0 right-0 flex justify-center px-4 pointer-events-none z-10">
               <div className="pointer-events-auto">
                 <PdfNavigation
