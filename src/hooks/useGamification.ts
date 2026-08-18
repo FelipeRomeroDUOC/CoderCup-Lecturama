@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Chapter } from "@/types/pdf";
+import { isPreliminarySection } from "@/lib/chapterClassifier";
 
 interface UseGamificationProps {
   chapters: Chapter[];
@@ -11,8 +12,19 @@ interface UseGamificationProps {
 export function useGamification({ chapters, bookTitle = "default_book" }: UseGamificationProps) {
   const storageKey = `codercup_progress_${bookTitle.replace(/\s+/g, "_")}`;
 
+  // Find index of the first real playable chapter
+  const firstPlayableIndex = useMemo(() => {
+    const idx = chapters.findIndex((c) => !isPreliminarySection(c.title));
+    return idx >= 0 ? idx : 0;
+  }, [chapters]);
+
   const [completedChapterIds, setCompletedChapterIds] = useState<string[]>([]);
-  const [maxUnlockedIndex, setMaxUnlockedIndex] = useState<number>(0);
+  const [maxUnlockedIndex, setMaxUnlockedIndex] = useState<number>(firstPlayableIndex);
+
+  // Update initial unlocked index when chapters load
+  useEffect(() => {
+    setMaxUnlockedIndex((prev) => Math.max(prev, firstPlayableIndex));
+  }, [firstPlayableIndex]);
 
   // Load saved progress from localStorage on mount
   useEffect(() => {
@@ -24,7 +36,7 @@ export function useGamification({ chapters, bookTitle = "default_book" }: UseGam
           setCompletedChapterIds(parsed.completedChapterIds);
         }
         if (typeof parsed.maxUnlockedIndex === "number") {
-          setMaxUnlockedIndex(parsed.maxUnlockedIndex);
+          setMaxUnlockedIndex((prev) => Math.max(prev, parsed.maxUnlockedIndex));
         }
       }
     } catch {
@@ -62,14 +74,21 @@ export function useGamification({ chapters, bookTitle = "default_book" }: UseGam
       // If no outline exists, everything is open
       if (chapters.length === 0) return true;
 
-      // Chapter is unlocked if index <= maxUnlockedIndex or already marked completed
+      const chapter = chapters[index];
+      // Preliminary sections (portada, indice) are always unlocked for free reading
+      if (chapter && isPreliminarySection(chapter.title)) {
+        return true;
+      }
+
+      // Playable chapters unlock in sequence or if completed
       return index <= maxUnlockedIndex || completedChapterIds.includes(chapterId);
     },
-    [chapters.length, maxUnlockedIndex, completedChapterIds]
+    [chapters, maxUnlockedIndex, completedChapterIds]
   );
 
   const markChapterCompleted = useCallback(
     (chapterId: string, currentIdx: number) => {
+      // Advance to next index
       const nextUnlocked = Math.max(maxUnlockedIndex, currentIdx + 1);
       const updatedCompleted = completedChapterIds.includes(chapterId)
         ? completedChapterIds
@@ -84,13 +103,13 @@ export function useGamification({ chapters, bookTitle = "default_book" }: UseGam
 
   const resetProgress = useCallback(() => {
     setCompletedChapterIds([]);
-    setMaxUnlockedIndex(0);
+    setMaxUnlockedIndex(firstPlayableIndex);
     try {
       localStorage.removeItem(storageKey);
     } catch {
       // Ignore
     }
-  }, [storageKey]);
+  }, [storageKey, firstPlayableIndex]);
 
   return {
     completedChapterIds,

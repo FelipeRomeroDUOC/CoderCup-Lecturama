@@ -1,6 +1,7 @@
 "use client";
 
 import { Chapter } from "@/types/pdf";
+import { isPreliminarySection } from "@/lib/chapterClassifier";
 
 interface ChapterSidebarProps {
   chapters: Chapter[];
@@ -36,8 +37,22 @@ export default function ChapterSidebar({
       >
         {items.map((chapter, index) => {
           const isActive = activeChapterId === chapter.id;
-          const isUnlocked = isChapterUnlocked ? isChapterUnlocked(chapter.id, index) : true;
-          const isCompleted = isChapterCompleted ? isChapterCompleted(chapter.id) : false;
+          const isPreliminary = isPreliminarySection(chapter.title);
+          const isUnlocked = isChapterUnlocked
+            ? isChapterUnlocked(chapter.id, index)
+            : true;
+          const isCompleted = isChapterCompleted
+            ? isChapterCompleted(chapter.id)
+            : false;
+
+          let icon = "📖";
+          if (isPreliminary) {
+            icon = "📄";
+          } else if (!isUnlocked) {
+            icon = "🔒";
+          } else if (isCompleted) {
+            icon = "✅";
+          }
 
           return (
             <li key={chapter.id}>
@@ -50,7 +65,9 @@ export default function ChapterSidebar({
                 }}
                 disabled={!isUnlocked}
                 title={
-                  !isUnlocked
+                  isPreliminary
+                    ? `${chapter.title} (Sección Introductoria)`
+                    : !isUnlocked
                     ? "Capítulo bloqueado. Supera el quiz del nivel actual para desbloquearlo."
                     : isCompleted
                     ? "Capítulo completado (Lectura libre)"
@@ -63,13 +80,13 @@ export default function ChapterSidebar({
                     ? "bg-zinc-900 text-white font-semibold shadow-sm dark:bg-zinc-100 dark:text-zinc-900"
                     : isCompleted
                     ? "text-zinc-800 dark:text-zinc-200 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                    : isPreliminary
+                    ? "text-zinc-700 dark:text-zinc-300 hover:bg-blue-50 dark:hover:bg-blue-950/20"
                     : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800/60"
                 }`}
               >
                 <div className="flex items-center gap-2 min-w-0 truncate">
-                  <span className="shrink-0 text-xs">
-                    {!isUnlocked ? "🔒" : isCompleted ? "✅" : "📖"}
-                  </span>
+                  <span className="shrink-0 text-xs">{icon}</span>
                   <span className="truncate">{chapter.title}</span>
                 </div>
 
@@ -81,6 +98,8 @@ export default function ChapterSidebar({
                       ? "bg-zinc-800 text-zinc-300 dark:bg-zinc-200 dark:text-zinc-800"
                       : isCompleted
                       ? "text-emerald-700 bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-300"
+                      : isPreliminary
+                      ? "text-blue-700 bg-blue-100 dark:bg-blue-950 dark:text-blue-300"
                       : "text-zinc-500 bg-zinc-100 dark:bg-zinc-800"
                   }`}
                 >

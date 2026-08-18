@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo, memo } from "react";
 import { Page } from "react-pdf";
 import type { PDFDocumentProxy } from "pdfjs-dist";
+import { isPreliminarySection } from "@/lib/chapterClassifier";
 
 interface PdfPageItemProps {
   pdf: PDFDocumentProxy;
@@ -128,6 +129,8 @@ export default function PdfViewer({
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const isProgrammaticScroll = useRef<boolean>(false);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const isPreliminary = isPreliminarySection(activeChapterTitle);
 
   // Register DOM elements per page
   const handleMountElement = useCallback(
@@ -255,12 +258,16 @@ export default function PdfViewer({
           <div className="space-y-1">
             <span
               className={`text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-full inline-block ${
-                isCurrentChapterCompleted
+                isPreliminary
+                  ? "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300"
+                  : isCurrentChapterCompleted
                   ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
                   : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
               }`}
             >
-              {isCurrentChapterCompleted
+              {isPreliminary
+                ? "📖 Sección Introductoria"
+                : isCurrentChapterCompleted
                 ? "✅ Capítulo Superado"
                 : "⚔️ Desafío de Nivel"}
             </span>
@@ -270,7 +277,9 @@ export default function PdfViewer({
             </h3>
 
             <p className="text-sm text-zinc-500 dark:text-zinc-400">
-              {isCurrentChapterCompleted
+              {isPreliminary
+                ? "Has terminado de ver esta sección preliminar. Puedes avanzar libremente al primer capítulo del libro."
+                : isCurrentChapterCompleted
                 ? "Ya has superado este capítulo. Puedes releerlo libremente o continuar tu camino."
                 : "Has terminado las páginas de este capítulo. Responde el quiz para desbloquear el siguiente nivel."}
             </p>
@@ -283,12 +292,23 @@ export default function PdfViewer({
                 onClick={onPrevChapter}
                 className="px-4 py-2.5 text-sm font-medium rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-all"
               >
-                ← Capítulo Anterior
+                ← Anterior
               </button>
             )}
 
-            {/* If chapter not completed, show Quiz button */}
-            {!isCurrentChapterCompleted && onStartQuiz && (
+            {/* Preliminary section: Direct advance button */}
+            {isPreliminary && hasNextChapter && onNextChapter && (
+              <button
+                type="button"
+                onClick={onNextChapter}
+                className="px-6 py-2.5 text-sm font-semibold rounded-xl bg-blue-600 text-white hover:bg-blue-500 shadow-md transition-all flex items-center gap-2"
+              >
+                <span>Comenzar Lectura ➔</span>
+              </button>
+            )}
+
+            {/* Playable chapter: Quiz button if not yet completed */}
+            {!isPreliminary && !isCurrentChapterCompleted && onStartQuiz && (
               <button
                 type="button"
                 onClick={onStartQuiz}
@@ -299,8 +319,8 @@ export default function PdfViewer({
               </button>
             )}
 
-            {/* If completed and has next chapter */}
-            {hasNextChapter && onNextChapter && isCurrentChapterCompleted && isNextChapterUnlocked && (
+            {/* Playable chapter: Next chapter button if already completed */}
+            {!isPreliminary && hasNextChapter && onNextChapter && isCurrentChapterCompleted && isNextChapterUnlocked && (
               <button
                 type="button"
                 onClick={onNextChapter}
