@@ -1,8 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import PdfUploader from "@/components/PdfUploader";
-import PdfReader from "@/components/PdfReader";
+
+const PdfReader = dynamic(() => import("@/components/PdfReader"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex min-h-screen items-center justify-center p-12">
+      <div className="flex flex-col items-center space-y-4">
+        <div className="w-8 h-8 border-4 border-zinc-400 border-t-zinc-900 dark:border-t-zinc-100 rounded-full animate-spin" />
+        <p className="text-sm text-zinc-500">Cargando visor...</p>
+      </div>
+    </div>
+  ),
+});
 
 export default function Home() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);

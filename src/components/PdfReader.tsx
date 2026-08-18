@@ -1,22 +1,18 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
-import dynamic from "next/dynamic";
+import { Document, pdfjs } from "react-pdf";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { useChapters } from "@/hooks/useChapters";
 import { Chapter } from "@/types/pdf";
 import ChapterSidebar from "@/components/ChapterSidebar";
 import PdfNavigation from "@/components/PdfNavigation";
+import PdfViewer from "@/components/PdfViewer";
+import "react-pdf/dist/Page/AnnotationLayer.css";
+import "react-pdf/dist/Page/TextLayer.css";
 
-const PdfViewer = dynamic(() => import("@/components/PdfViewer"), {
-  ssr: false,
-  loading: () => (
-    <div className="flex flex-col items-center justify-center p-24 space-y-4">
-      <div className="w-8 h-8 border-4 border-zinc-400 border-t-zinc-900 dark:border-t-zinc-100 rounded-full animate-spin" />
-      <p className="text-sm text-zinc-500">Iniciando visor de PDF...</p>
-    </div>
-  ),
-});
+// Configure PDF.js worker
+pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 interface PdfReaderProps {
   file: File;
@@ -30,6 +26,7 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
   const [activeChapterId, setActiveChapterId] = useState<string | null>(null);
   const [scrollToPage, setScrollToPage] = useState<number | undefined>(undefined);
+  const [isDocLoaded, setIsDocLoaded] = useState<boolean>(false);
 
   const {
     chapters,
@@ -41,6 +38,7 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
   const handleDocumentLoadSuccess = useCallback(
     (pdf: PDFDocumentProxy) => {
       setNumPages(pdf.numPages);
+      setIsDocLoaded(true);
       extractChapters(pdf, pdf.numPages);
     },
     [extractChapters]
@@ -105,7 +103,7 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
     }
   }, [currentChapterIndex, flattenedChapters, handleSelectChapter]);
 
-  // Jump to specific page: if it belongs to another chapter, switch chapter
+  // Jump to specific page
   const handlePageChange = useCallback(
     (targetPage: number) => {
       if (targetPage < 1 || targetPage > numPages) return;
@@ -126,7 +124,7 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
 
   const handleVisiblePageChange = useCallback((pageNum: number) => {
     setCurrentPage((prev) => (prev !== pageNum ? pageNum : prev));
-    setScrollToPage(undefined); // Clear requested scroll target once scrolling naturally
+    setScrollToPage(undefined);
   }, []);
 
   const zoomIn = () => setScale((prev) => Math.min(prev + 0.15, 2.0));
@@ -191,7 +189,7 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
         </div>
       </header>
 
-      {/* Body: Sidebar + Scrollable Reader */}
+      {/* Main Content Area */}
       <div className="flex flex-1 overflow-hidden relative">
         <ChapterSidebar
           chapters={chapters}
@@ -204,37 +202,56 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
         />
 
         <div className="flex flex-col flex-1 h-full overflow-y-auto relative">
-          <main className="flex-1 pb-24">
-            <PdfViewer
-              file={file}
-              startPage={startPage}
-              endPage={endPage}
-              onDocumentLoadSuccess={handleDocumentLoadSuccess}
-              onVisiblePageChange={handleVisiblePageChange}
-              scale={scale}
-              activeChapterTitle={activeChapter?.title}
-              hasNextChapter={
-                currentChapterIndex >= 0 &&
-                currentChapterIndex < flattenedChapters.length - 1
-              }
-              hasPrevChapter={currentChapterIndex > 0}
-              onNextChapter={handleNextChapter}
-              onPrevChapter={handlePrevChapter}
-              scrollToPage={scrollToPage}
-            />
-          </main>
+          <Document
+            file={file}
+            onLoadSuccess={handleDocumentLoadSuccess}
+            loading={
+              <div className="flex flex-col items-center justify-center p-24 space-y-4">
+                <div className="w-8 h-8 border-4 border-zinc-400 border-t-zinc-900 dark:border-t-zinc-100 rounded-full animate-spin" />
+                <p className="text-sm text-zinc-500">Cargando documento PDF...</p>
+              </div>
+            }
+            error={
+              <div className="p-12 text-center text-red-600 dark:text-red-400 space-y-2">
+                <p className="font-semibold">Error al cargar el archivo PDF.</p>
+                <p className="text-sm">Por favor verifica que el archivo no esté dañado.</p>
+              </div>
+            }
+          >
+            {isDocLoaded && (
+              <main className="flex-1 pb-24">
+                <PdfViewer
+                  startPage={startPage}
+                  endPage={endPage}
+                  onVisiblePageChange={handleVisiblePageChange}
+                  scale={scale}
+                  activeChapterTitle={activeChapter?.title}
+                  hasNextChapter={
+                    currentChapterIndex >= 0 &&
+                    currentChapterIndex < flattenedChapters.length - 1
+                  }
+                  hasPrevChapter={currentChapterIndex > 0}
+                  onNextChapter={handleNextChapter}
+                  onPrevChapter={handlePrevChapter}
+                  scrollToPage={scrollToPage}
+                />
+              </main>
+            )}
+          </Document>
 
           {/* Sticky Bottom Navigation Bar */}
-          <div className="sticky bottom-4 left-0 right-0 flex justify-center px-4 pointer-events-none z-10">
-            <div className="pointer-events-auto">
-              <PdfNavigation
-                currentPage={currentPage}
-                numPages={numPages}
-                onPageChange={handlePageChange}
-                activeChapterTitle={activeChapter?.title}
-              />
+          {isDocLoaded && (
+            <div className="sticky bottom-4 left-0 right-0 flex justify-center px-4 pointer-events-none z-10">
+              <div className="pointer-events-auto">
+                <PdfNavigation
+                  currentPage={currentPage}
+                  numPages={numPages}
+                  onPageChange={handlePageChange}
+                  activeChapterTitle={activeChapter?.title}
+                />
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
