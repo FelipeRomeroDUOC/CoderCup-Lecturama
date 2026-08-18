@@ -25,27 +25,64 @@ sola aplicación en **Vercel**.
 - **Cliente (navegador)**: renderiza el visor de PDFs, la navegación entre páginas
   y capítulos, y toda la interacción del usuario. Es donde se enfoca el trabajo
   actual.
-- **Servidor (Route Handlers / Server Actions de Next.js)**: en el futuro expondrá
-  la lógica que llama a una API de IA externa para generar las preguntas de cada
-  capítulo/nivel. **Esto todavía no se construye** — se menciona aquí solo para que
-  el agente entienda que en algún momento aparecerán carpetas/archivos de lógica de
-  servidor (por ejemplo en `app/api/`) dedicados a esto, y no los confunda con el
-  alcance actual ni intente adelantarse a implementarlos.
+- **Servidor (Route Handlers de Next.js)**: expone la lógica que llama a la API de
+  IA (Google AI Studio / Gemini) para generar las preguntas de cada capítulo, y la
+  lógica para guardarlas y consultarlas en la base de datos. Esto es el foco de la
+  fase actual (ver sección "Backend: generación de preguntas con IA" más abajo).
 
-## Fase actual: SOLO la interfaz del lector de PDFs
+## Historial de fases
 
-Por ahora el foco es exclusivamente construir la interfaz para subir y leer PDFs.
-NO implementes todavía:
+1. ✅ **Completada** — Interfaz del lector de PDFs (subida de archivo, visor,
+   navegación entre páginas y capítulos).
+2. 🔨 **Fase actual** — Backend para generar y persistir las preguntas de cada
+   capítulo (ver secciones "Backend: generación de preguntas con IA" y
+   "Persistencia" más abajo).
+3. ⏳ **Pendiente** — Integrar el quiz en el cliente: mostrar las preguntas, restar
+   vidas, bloquear el siguiente capítulo hasta aprobar. No implementar todavía a
+   menos que el usuario lo pida explícitamente.
+4. ⏳ **Pendiente** — Autenticación de usuarios, si se decide agregarla más
+   adelante.
 
-- Lógica de preguntas / quizzes
-- Sistema de "niveles" o bloqueo de capítulos según progreso
-- Guardado de progreso del usuario
-- Autenticación de usuarios
-- Backend / base de datos
+## Backend: generación de preguntas con IA
 
-Si detectas que una tarea requiere alguna de estas piezas, detente y pregunta antes
-de construirla — no la implementes "por adelantado" aunque el nombre del proyecto
-lo sugiera.
+- **Proveedor**: Google AI Studio (API de Gemini), capa gratuita.
+- **Cuándo se genera**: bajo demanda, cuando el usuario termina de leer un
+  capítulo — nunca al subir el libro. Esto evita golpear los límites de la capa
+  gratuita (bastante ajustados: pocas solicitudes por minuto y un tope diario,
+  según el modelo) y evita gastar cuota en capítulos que el usuario nunca llegue a
+  leer.
+- **Cantidad**: 5 preguntas por capítulo.
+- **Vidas**: 3 vidas por capítulo, independientes entre capítulos.
+- **Reintentos**: las preguntas de un capítulo se generan **una sola vez** y se
+  guardan. Si el usuario pierde las 3 vidas, el reintento reutiliza el mismo set de
+  5 preguntas — nunca se vuelve a llamar a la IA para un capítulo que ya tiene
+  preguntas generadas.
+- **Formato de salida**: pedirle al modelo que devuelva las preguntas en un JSON
+  estructurado y estricto (texto de la pregunta, opciones, índice de la respuesta
+  correcta) para poder parsearlo de forma confiable.
+- **Manejo de errores**: la capa gratuita puede devolver error 429 al exceder el
+  límite de solicitudes. Implementar reintento con backoff exponencial simple, no
+  ignorar el error ni fallar silenciosamente.
+- **Dónde vive el código**: un Route Handler (por ejemplo
+  `app/api/chapters/[id]/questions/route.ts`) que recibe el texto del capítulo,
+  llama a la API de Gemini, guarda el resultado en la base de datos y lo devuelve
+  al cliente.
+- **API key**: la clave de la API de Gemini se guarda como variable de entorno del
+  servidor (por ejemplo `GEMINI_API_KEY`) y nunca se expone al cliente.
+
+## Persistencia
+
+- Base de datos: **Postgres a través del Vercel Marketplace (integración con
+  Neon)**. Ya no existe "Vercel Postgres" como producto propio — se provisiona
+  desde el Marketplace de Vercel.
+- Qué guardar en esta fase, como mínimo:
+  - Las 5 preguntas generadas por capítulo (para no volver a llamar a la IA).
+  - Las vidas restantes por capítulo, asociadas a un usuario.
+- **Identidad sin login**: como todavía no hay autenticación, usar un identificador
+  de sesión anónimo (por ejemplo una cookie con un UUID generado en el primer
+  request) para asociar el progreso/vidas a un "usuario" sin necesidad de cuenta.
+  Esto es una recomendación, no una decisión cerrada — confírmalo con el usuario
+  antes de fijar el esquema final de la base de datos.
 
 ## Stack técnico
 
@@ -58,8 +95,11 @@ lo sugiera.
   leer el outline/tabla de contenidos embebido en el PDF para detectar capítulos,
   usar las utilidades de `pdfjs-dist` directamente (react-pdf lo trae como
   dependencia interna).
+- IA: Google AI Studio (Gemini API, capa gratuita) — ver "Backend: generación de
+  preguntas con IA".
+- Base de datos: Postgres vía Vercel Marketplace (Neon) — ver "Persistencia".
 
-## Alcance de la interfaz del lector (fase actual)
+## Alcance de la interfaz del lector (completado)
 
 1. Componente para subir un archivo PDF (drag & drop + selector de archivo).
 2. Vista de lector que muestra el PDF (por página o con scroll continuo).
@@ -85,9 +125,11 @@ lo sugiera.
 
 ## Qué NO hacer
 
-- No inventar endpoints de backend ni base de datos que no existen en el proyecto.
-- No agregar autenticación ni persistencia de progreso todavía.
-- No implementar el sistema de preguntas/quizzes en esta fase.
-- No implementar todavía la llamada a la API de IA ni ningún Route Handler /
-  Server Action relacionado con generación de preguntas — solo tenlo presente
-  como trabajo futuro del lado del servidor.
+- No implementar la interfaz del quiz en el cliente todavía (mostrar preguntas,
+  restar vidas, bloquear capítulos) — es la siguiente fase, no esta.
+- No agregar autenticación con login/cuentas todavía — usar el identificador de
+  sesión anónimo descrito en "Persistencia".
+- No generar preguntas de todos los capítulos de una vez (batch) — siempre bajo
+  demanda, un capítulo a la vez.
+- No volver a llamar a la API de IA para un capítulo que ya tiene preguntas
+  generadas y guardadas, ni siquiera si el usuario pierde todas las vidas.
