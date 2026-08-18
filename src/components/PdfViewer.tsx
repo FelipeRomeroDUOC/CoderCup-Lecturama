@@ -17,28 +17,71 @@ const PdfPageItem = memo(function PdfPageItem({
   width,
   onMountElement,
 }: PdfPageItemProps) {
-  const setRef = useCallback(
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  // First page is loaded immediately, subsequent pages are loaded when near viewport
+  const [shouldRender, setShouldRender] = useState<boolean>(pageNum <= 2);
+
+  const handleRef = useCallback(
     (el: HTMLDivElement | null) => {
+      containerRef.current = el;
       onMountElement(pageNum, el);
     },
     [pageNum, onMountElement]
   );
 
+  // Lazy loading observer: loads page when within 600px of viewport
+  useEffect(() => {
+    if (shouldRender) return;
+
+    const el = containerRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setShouldRender(true);
+          observer.disconnect();
+        }
+      },
+      {
+        root: null,
+        rootMargin: "600px 0px 600px 0px",
+        threshold: 0,
+      }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [shouldRender]);
+
+  // Approximate height based on standard A4/US Letter aspect ratio (1:1.414)
+  const estimatedHeight = Math.round(width * 1.414);
+
   return (
     <div
       data-page-number={pageNum}
-      ref={setRef}
-      className="flex flex-col items-center w-full"
+      ref={handleRef}
+      className="flex flex-col items-center w-full min-h-[400px]"
     >
-      <div className="shadow-lg rounded-lg overflow-hidden bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
-        <Page
-          pdf={pdf}
-          pageNumber={pageNum}
-          width={width}
-          renderTextLayer={true}
-          renderAnnotationLayer={true}
-          className="transition-all duration-150"
-        />
+      <div
+        className="shadow-lg rounded-lg overflow-hidden bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center transition-all duration-150"
+        style={{ width: `${width}px`, minHeight: shouldRender ? undefined : `${estimatedHeight}px` }}
+      >
+        {shouldRender ? (
+          <Page
+            pdf={pdf}
+            pageNumber={pageNum}
+            width={width}
+            renderTextLayer={true}
+            renderAnnotationLayer={true}
+            className="transition-all duration-150"
+          />
+        ) : (
+          <div className="flex flex-col items-center justify-center p-12 text-zinc-400 space-y-2">
+            <div className="w-6 h-6 border-2 border-zinc-300 border-t-zinc-700 dark:border-zinc-700 dark:border-t-zinc-300 rounded-full animate-spin" />
+            <span className="text-xs font-medium">Cargando página {pageNum}...</span>
+          </div>
+        )}
       </div>
       <span className="mt-2 text-xs font-medium text-zinc-400">
         Página {pageNum}
@@ -75,12 +118,12 @@ export default function PdfViewer({
   scrollToPage,
 }: PdfViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [containerWidth, setContainerWidth] = useState<number>(650);
+  const [containerWidth, setContainerWidth] = useState<number>(750);
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const isProgrammaticScroll = useRef<boolean>(false);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Callback to register DOM elements per page
+  // Register DOM elements per page
   const handleMountElement = useCallback(
     (pageNum: number, el: HTMLDivElement | null) => {
       if (el) {
@@ -92,11 +135,12 @@ export default function PdfViewer({
     []
   );
 
-  // Adjust page width responsively
+  // Adjust page width responsively without rapid updates
   const updateWidth = useCallback(() => {
     if (containerRef.current) {
       const width = containerRef.current.clientWidth;
-      setContainerWidth(Math.min(width - 32, 850));
+      const targetWidth = Math.min(Math.max(width - 32, 320), 850);
+      setContainerWidth((prev) => (Math.abs(prev - targetWidth) > 10 ? targetWidth : prev));
     }
   }, []);
 
@@ -106,13 +150,13 @@ export default function PdfViewer({
     return () => window.removeEventListener("resize", updateWidth);
   }, [updateWidth]);
 
-  // Memoize page range for the current chapter
+  // Memoize page range for current chapter
   const pages = useMemo(() => {
     const count = Math.max(1, endPage - startPage + 1);
     return Array.from({ length: count }, (_, i) => startPage + i);
   }, [startPage, endPage]);
 
-  // Smooth scroll to a target page with programmatic scroll silencing
+  // Smooth scroll to a target page
   useEffect(() => {
     const targetPage = scrollToPage || startPage;
     const pageEl = pageRefs.current.get(targetPage);
@@ -125,7 +169,6 @@ export default function PdfViewer({
 
       pageEl.scrollIntoView({ behavior: "smooth", block: "start" });
 
-      // Unlock programmatic scroll once animation concludes
       scrollTimeoutRef.current = setTimeout(() => {
         isProgrammaticScroll.current = false;
       }, 750);
@@ -138,7 +181,7 @@ export default function PdfViewer({
     };
   }, [startPage, scrollToPage]);
 
-  // Observe visible page without triggering state thrashing
+  // Observe active visible page
   useEffect(() => {
     let debounceTimer: NodeJS.Timeout | null = null;
 
@@ -146,11 +189,9 @@ export default function PdfViewer({
       (entries) => {
         if (isProgrammaticScroll.current) return;
 
-        // Find intersecting entry with the highest visibility
         const intersectingEntries = entries.filter((e) => e.isIntersecting);
         if (intersectingEntries.length === 0) return;
 
-        // Pick the entry closest to top of viewport
         const topEntry = intersectingEntries.reduce((prev, curr) =>
           Math.abs(curr.boundingClientRect.top) <
           Math.abs(prev.boundingClientRect.top)
@@ -165,13 +206,13 @@ export default function PdfViewer({
             if (!isProgrammaticScroll.current) {
               onVisiblePageChange(pageNum);
             }
-          }, 100);
+          }, 150);
         }
       },
       {
         root: null,
         rootMargin: "-10% 0px -40% 0px",
-        threshold: [0, 0.25, 0.5, 0.75],
+        threshold: [0, 0.25, 0.5],
       }
     );
 
@@ -185,7 +226,7 @@ export default function PdfViewer({
     };
   }, [pages, onVisiblePageChange]);
 
-  const renderedWidth = containerWidth * scale;
+  const renderedWidth = Math.round(containerWidth * scale);
 
   return (
     <div
