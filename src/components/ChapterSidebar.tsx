@@ -10,6 +10,8 @@ interface ChapterSidebarProps {
   onSelectChapter: (chapter: Chapter) => void;
   isOpen: boolean;
   onToggle: () => void;
+  isChapterUnlocked?: (chapterId: string, index: number) => boolean;
+  isChapterCompleted?: (chapterId: string) => boolean;
 }
 
 export default function ChapterSidebar({
@@ -20,6 +22,8 @@ export default function ChapterSidebar({
   onSelectChapter,
   isOpen,
   onToggle,
+  isChapterUnlocked,
+  isChapterCompleted,
 }: ChapterSidebarProps) {
   const renderChapterList = (items: Chapter[], depth = 0) => {
     return (
@@ -30,25 +34,53 @@ export default function ChapterSidebar({
             : ""
         }`}
       >
-        {items.map((chapter) => {
+        {items.map((chapter, index) => {
           const isActive = activeChapterId === chapter.id;
+          const isUnlocked = isChapterUnlocked ? isChapterUnlocked(chapter.id, index) : true;
+          const isCompleted = isChapterCompleted ? isChapterCompleted(chapter.id) : false;
 
           return (
             <li key={chapter.id}>
               <button
                 type="button"
-                onClick={() => onSelectChapter(chapter)}
-                className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors flex items-center justify-between gap-2 ${
-                  isActive
-                    ? "bg-zinc-900 text-white font-semibold dark:bg-zinc-100 dark:text-zinc-900"
+                onClick={() => {
+                  if (isUnlocked) {
+                    onSelectChapter(chapter);
+                  }
+                }}
+                disabled={!isUnlocked}
+                title={
+                  !isUnlocked
+                    ? "Capítulo bloqueado. Supera el quiz del nivel actual para desbloquearlo."
+                    : isCompleted
+                    ? "Capítulo completado (Lectura libre)"
+                    : chapter.title
+                }
+                className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-all flex items-center justify-between gap-2 ${
+                  !isUnlocked
+                    ? "opacity-40 cursor-not-allowed bg-zinc-100/50 dark:bg-zinc-900/30 text-zinc-400"
+                    : isActive
+                    ? "bg-zinc-900 text-white font-semibold shadow-sm dark:bg-zinc-100 dark:text-zinc-900"
+                    : isCompleted
+                    ? "text-zinc-800 dark:text-zinc-200 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
                     : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800/60"
                 }`}
               >
-                <span className="truncate">{chapter.title}</span>
+                <div className="flex items-center gap-2 min-w-0 truncate">
+                  <span className="shrink-0 text-xs">
+                    {!isUnlocked ? "🔒" : isCompleted ? "✅" : "📖"}
+                  </span>
+                  <span className="truncate">{chapter.title}</span>
+                </div>
+
                 <span
                   className={`text-xs px-1.5 py-0.5 rounded shrink-0 ${
-                    isActive
+                    !isUnlocked
+                      ? "text-zinc-400 bg-zinc-200/50 dark:bg-zinc-800/50"
+                      : isActive
                       ? "bg-zinc-800 text-zinc-300 dark:bg-zinc-200 dark:text-zinc-800"
+                      : isCompleted
+                      ? "text-emerald-700 bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-300"
                       : "text-zinc-500 bg-zinc-100 dark:bg-zinc-800"
                   }`}
                 >
@@ -85,9 +117,14 @@ export default function ChapterSidebar({
         }`}
       >
         <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
-          <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">
-            Capítulos
-          </h2>
+          <div>
+            <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">
+              Niveles y Capítulos
+            </h2>
+            <p className="text-xs text-zinc-500">
+              Supera cada quiz para desbloquear
+            </p>
+          </div>
           <button
             type="button"
             onClick={onToggle}

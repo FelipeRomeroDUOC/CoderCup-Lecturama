@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback } from "react";
 import { Document, pdfjs } from "react-pdf";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { useChapters } from "@/hooks/useChapters";
+import { useGamification } from "@/hooks/useGamification";
 import { Chapter } from "@/types/pdf";
 import ChapterSidebar from "@/components/ChapterSidebar";
 import PdfNavigation from "@/components/PdfNavigation";
@@ -80,6 +81,15 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
     return list;
   }, [chapters]);
 
+  // Gamification: level unlocking & chapter completion state
+  const {
+    isChapterCompleted,
+    isChapterUnlocked,
+  } = useGamification({
+    chapters: flattenedChapters,
+    bookTitle: file.name,
+  });
+
   // Current active chapter object
   const activeChapter = useMemo(() => {
     if (activeChapterId && flattenedChapters.length > 0) {
@@ -101,11 +111,18 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
   const startPage = activeChapter ? activeChapter.startPage : 1;
   const endPage = activeChapter ? activeChapter.endPage : numPages;
 
-  const handleSelectChapter = useCallback((chapter: Chapter) => {
-    setActiveChapterId(chapter.id);
-    setCurrentPage(chapter.startPage);
-    setScrollToPage(chapter.startPage);
-  }, []);
+  const handleSelectChapter = useCallback(
+    (chapter: Chapter) => {
+      const idx = flattenedChapters.findIndex((c) => c.id === chapter.id);
+      if (!isChapterUnlocked(chapter.id, idx)) {
+        return;
+      }
+      setActiveChapterId(chapter.id);
+      setCurrentPage(chapter.startPage);
+      setScrollToPage(chapter.startPage);
+    },
+    [flattenedChapters, isChapterUnlocked]
+  );
 
   const handleNextChapter = useCallback(() => {
     if (
@@ -113,9 +130,11 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
       currentChapterIndex < flattenedChapters.length - 1
     ) {
       const nextChapter = flattenedChapters[currentChapterIndex + 1];
-      handleSelectChapter(nextChapter);
+      if (isChapterUnlocked(nextChapter.id, currentChapterIndex + 1)) {
+        handleSelectChapter(nextChapter);
+      }
     }
-  }, [currentChapterIndex, flattenedChapters, handleSelectChapter]);
+  }, [currentChapterIndex, flattenedChapters, handleSelectChapter, isChapterUnlocked]);
 
   const handlePrevChapter = useCallback(() => {
     if (currentChapterIndex > 0) {
@@ -124,23 +143,31 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
     }
   }, [currentChapterIndex, flattenedChapters, handleSelectChapter]);
 
-  // Jump to specific page
+  // Jump to specific page with locked chapter guard
   const handlePageChange = useCallback(
     (targetPage: number) => {
       if (targetPage < 1 || targetPage > numPages) return;
 
-      const targetChapter = flattenedChapters.find(
+      const targetChapterIdx = flattenedChapters.findIndex(
         (c) => targetPage >= c.startPage && targetPage <= c.endPage
       );
 
-      if (targetChapter && targetChapter.id !== activeChapterId) {
-        setActiveChapterId(targetChapter.id);
+      if (targetChapterIdx >= 0) {
+        const targetChapter = flattenedChapters[targetChapterIdx];
+        if (!isChapterUnlocked(targetChapter.id, targetChapterIdx)) {
+          // Page belongs to a locked chapter
+          return;
+        }
+
+        if (targetChapter.id !== activeChapterId) {
+          setActiveChapterId(targetChapter.id);
+        }
       }
 
       setCurrentPage(targetPage);
       setScrollToPage(targetPage);
     },
-    [numPages, flattenedChapters, activeChapterId]
+    [numPages, flattenedChapters, isChapterUnlocked, activeChapterId]
   );
 
   const handleVisiblePageChange = useCallback((pageNum: number) => {
@@ -150,6 +177,18 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
   const zoomIn = () => setScale((prev) => Math.min(prev + 0.15, 2.0));
   const zoomOut = () => setScale((prev) => Math.max(prev - 0.15, 0.6));
   const zoomReset = () => setScale(1.0);
+
+  const isCurrentCompleted = activeChapter
+    ? isChapterCompleted(activeChapter.id)
+    : false;
+
+  const isNextUnlocked =
+    currentChapterIndex < flattenedChapters.length - 1
+      ? isChapterUnlocked(
+          flattenedChapters[currentChapterIndex + 1].id,
+          currentChapterIndex + 1
+        )
+      : false;
 
   return (
     <div className="flex flex-col h-screen w-full bg-zinc-50 dark:bg-zinc-950 overflow-hidden">
@@ -219,6 +258,8 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
           onSelectChapter={handleSelectChapter}
           isOpen={isSidebarOpen}
           onToggle={() => setIsSidebarOpen((prev) => !prev)}
+          isChapterUnlocked={isChapterUnlocked}
+          isChapterCompleted={isChapterCompleted}
         />
 
         <div className="flex flex-col flex-1 h-full overflow-y-auto relative">
@@ -242,6 +283,8 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
                     currentChapterIndex < flattenedChapters.length - 1
                   }
                   hasPrevChapter={currentChapterIndex > 0}
+                  isCurrentChapterCompleted={isCurrentCompleted}
+                  isNextChapterUnlocked={isNextUnlocked}
                   onNextChapter={handleNextChapter}
                   onPrevChapter={handlePrevChapter}
                   scrollToPage={scrollToPage}

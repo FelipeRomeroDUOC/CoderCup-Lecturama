@@ -99,8 +99,11 @@ interface PdfViewerProps {
   activeChapterTitle?: string;
   hasNextChapter?: boolean;
   hasPrevChapter?: boolean;
+  isCurrentChapterCompleted?: boolean;
+  isNextChapterUnlocked?: boolean;
   onNextChapter?: () => void;
   onPrevChapter?: () => void;
+  onStartQuiz?: () => void;
   scrollToPage?: number;
 }
 
@@ -113,8 +116,11 @@ export default function PdfViewer({
   activeChapterTitle,
   hasNextChapter = false,
   hasPrevChapter = false,
+  isCurrentChapterCompleted = false,
+  isNextChapterUnlocked = true,
   onNextChapter,
   onPrevChapter,
+  onStartQuiz,
   scrollToPage,
 }: PdfViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -244,17 +250,29 @@ export default function PdfViewer({
           />
         ))}
 
-        {/* End of Chapter Card */}
-        <div className="w-full max-w-lg mt-6 p-6 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm text-center space-y-4">
+        {/* End of Chapter / Gamification Card */}
+        <div className="w-full max-w-lg mt-6 p-6 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-md text-center space-y-4">
           <div className="space-y-1">
-            <span className="text-xs font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">
-              Fin del capítulo
+            <span
+              className={`text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-full inline-block ${
+                isCurrentChapterCompleted
+                  ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                  : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+              }`}
+            >
+              {isCurrentChapterCompleted
+                ? "✅ Capítulo Superado"
+                : "⚔️ Desafío de Nivel"}
             </span>
-            <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
-              {activeChapterTitle || "Capítulo completado"}
+
+            <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 pt-2">
+              {activeChapterTitle || "Fin del capítulo"}
             </h3>
+
             <p className="text-sm text-zinc-500 dark:text-zinc-400">
-              Has llegado al final de las páginas de este capítulo.
+              {isCurrentChapterCompleted
+                ? "Ya has superado este capítulo. Puedes releerlo libremente o continuar tu camino."
+                : "Has terminado las páginas de este capítulo. Responde el quiz para desbloquear el siguiente nivel."}
             </p>
           </div>
 
@@ -263,17 +281,30 @@ export default function PdfViewer({
               <button
                 type="button"
                 onClick={onPrevChapter}
-                className="px-4 py-2 text-sm font-medium rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
+                className="px-4 py-2.5 text-sm font-medium rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-all"
               >
                 ← Capítulo Anterior
               </button>
             )}
 
-            {hasNextChapter && onNextChapter && (
+            {/* If chapter not completed, show Quiz button */}
+            {!isCurrentChapterCompleted && onStartQuiz && (
+              <button
+                type="button"
+                onClick={onStartQuiz}
+                className="px-5 py-2.5 text-sm font-semibold rounded-xl bg-amber-500 text-zinc-950 hover:bg-amber-400 shadow-md hover:shadow-lg transition-all flex items-center gap-2"
+              >
+                <span>🎯</span>
+                <span>Comenzar Quiz del Nivel</span>
+              </button>
+            )}
+
+            {/* If completed and has next chapter */}
+            {hasNextChapter && onNextChapter && isCurrentChapterCompleted && isNextChapterUnlocked && (
               <button
                 type="button"
                 onClick={onNextChapter}
-                className="px-5 py-2 text-sm font-medium rounded-lg bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 shadow-sm transition-colors"
+                className="px-5 py-2.5 text-sm font-medium rounded-xl bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 shadow-sm transition-all"
               >
                 Siguiente Capítulo →
               </button>
