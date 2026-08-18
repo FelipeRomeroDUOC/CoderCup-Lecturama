@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Document, pdfjs } from "react-pdf";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { useChapters } from "@/hooks/useChapters";
@@ -16,6 +16,22 @@ if (typeof window !== "undefined") {
   pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 }
 
+// Static loading element
+const DocumentLoadingFallback = (
+  <div className="flex flex-col items-center justify-center p-24 space-y-4">
+    <div className="w-8 h-8 border-4 border-zinc-400 border-t-zinc-900 dark:border-t-zinc-100 rounded-full animate-spin" />
+    <p className="text-sm text-zinc-500">Cargando documento PDF...</p>
+  </div>
+);
+
+// Static error element
+const DocumentErrorFallback = (
+  <div className="p-12 text-center text-red-600 dark:text-red-400 space-y-2">
+    <p className="font-semibold">Error al cargar el archivo PDF.</p>
+    <p className="text-sm">Por favor verifica que el archivo no esté dañado.</p>
+  </div>
+);
+
 interface PdfReaderProps {
   file: File;
   onClose: () => void;
@@ -30,6 +46,9 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
   const [activeChapterId, setActiveChapterId] = useState<string | null>(null);
   const [scrollToPage, setScrollToPage] = useState<number | undefined>(undefined);
 
+  // Memoize stable file reference
+  const stableFile = useMemo(() => file, [file]);
+
   const {
     chapters,
     hasOutline,
@@ -39,8 +58,8 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
 
   const handleDocumentLoadSuccess = useCallback(
     (pdf: PDFDocumentProxy) => {
-      setPdfDocument(pdf);
-      setNumPages(pdf.numPages);
+      setPdfDocument((prev) => (prev === pdf ? prev : pdf));
+      setNumPages((prev) => (prev === pdf.numPages ? prev : pdf.numPages));
       extractChapters(pdf, pdf.numPages);
     },
     [extractChapters]
@@ -126,7 +145,6 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
 
   const handleVisiblePageChange = useCallback((pageNum: number) => {
     setCurrentPage((prev) => (prev !== pageNum ? pageNum : prev));
-    setScrollToPage(undefined);
   }, []);
 
   const zoomIn = () => setScale((prev) => Math.min(prev + 0.15, 2.0));
@@ -205,20 +223,10 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
 
         <div className="flex flex-col flex-1 h-full overflow-y-auto relative">
           <Document
-            file={file}
+            file={stableFile}
             onLoadSuccess={handleDocumentLoadSuccess}
-            loading={
-              <div className="flex flex-col items-center justify-center p-24 space-y-4">
-                <div className="w-8 h-8 border-4 border-zinc-400 border-t-zinc-900 dark:border-t-zinc-100 rounded-full animate-spin" />
-                <p className="text-sm text-zinc-500">Cargando documento PDF...</p>
-              </div>
-            }
-            error={
-              <div className="p-12 text-center text-red-600 dark:text-red-400 space-y-2">
-                <p className="font-semibold">Error al cargar el archivo PDF.</p>
-                <p className="text-sm">Por favor verifica que el archivo no esté dañado.</p>
-              </div>
-            }
+            loading={DocumentLoadingFallback}
+            error={DocumentErrorFallback}
           >
             {pdfDocument && (
               <main className="flex-1 pb-24">

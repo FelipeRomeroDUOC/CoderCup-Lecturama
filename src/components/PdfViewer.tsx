@@ -1,8 +1,51 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo, memo } from "react";
 import { Page } from "react-pdf";
 import type { PDFDocumentProxy } from "pdfjs-dist";
+
+interface PdfPageItemProps {
+  pdf: PDFDocumentProxy;
+  pageNum: number;
+  width: number;
+  onMountElement: (pageNum: number, el: HTMLDivElement | null) => void;
+}
+
+const PdfPageItem = memo(function PdfPageItem({
+  pdf,
+  pageNum,
+  width,
+  onMountElement,
+}: PdfPageItemProps) {
+  const setRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      onMountElement(pageNum, el);
+    },
+    [pageNum, onMountElement]
+  );
+
+  return (
+    <div
+      data-page-number={pageNum}
+      ref={setRef}
+      className="flex flex-col items-center w-full"
+    >
+      <div className="shadow-lg rounded-lg overflow-hidden bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+        <Page
+          pdf={pdf}
+          pageNumber={pageNum}
+          width={width}
+          renderTextLayer={true}
+          renderAnnotationLayer={true}
+          className="transition-all duration-150"
+        />
+      </div>
+      <span className="mt-2 text-xs font-medium text-zinc-400">
+        Página {pageNum}
+      </span>
+    </div>
+  );
+});
 
 interface PdfViewerProps {
   pdf: PDFDocumentProxy;
@@ -34,6 +77,20 @@ export default function PdfViewer({
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState<number>(650);
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const isProgrammaticScroll = useRef<boolean>(false);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Callback to register DOM elements per page
+  const handleMountElement = useCallback(
+    (pageNum: number, el: HTMLDivElement | null) => {
+      if (el) {
+        pageRefs.current.set(pageNum, el);
+      } else {
+        pageRefs.current.delete(pageNum);
+      }
+    },
+    []
+  );
 
   // Adjust page width responsively
   const updateWidth = useCallback(() => {
@@ -55,32 +112,66 @@ export default function PdfViewer({
     return Array.from({ length: count }, (_, i) => startPage + i);
   }, [startPage, endPage]);
 
-  // Scroll to a specific page when requested or when chapter changes
+  // Smooth scroll to a target page with programmatic scroll silencing
   useEffect(() => {
     const targetPage = scrollToPage || startPage;
     const pageEl = pageRefs.current.get(targetPage);
+
     if (pageEl) {
+      isProgrammaticScroll.current = true;
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+
       pageEl.scrollIntoView({ behavior: "smooth", block: "start" });
+
+      // Unlock programmatic scroll once animation concludes
+      scrollTimeoutRef.current = setTimeout(() => {
+        isProgrammaticScroll.current = false;
+      }, 750);
     }
+
+    return () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
   }, [startPage, scrollToPage]);
 
-  // Observe which page is currently in view
+  // Observe visible page without triggering state thrashing
   useEffect(() => {
+    let debounceTimer: NodeJS.Timeout | null = null;
+
     const observer = new IntersectionObserver(
       (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            const pageNum = Number(entry.target.getAttribute("data-page-number"));
-            if (pageNum) {
+        if (isProgrammaticScroll.current) return;
+
+        // Find intersecting entry with the highest visibility
+        const intersectingEntries = entries.filter((e) => e.isIntersecting);
+        if (intersectingEntries.length === 0) return;
+
+        // Pick the entry closest to top of viewport
+        const topEntry = intersectingEntries.reduce((prev, curr) =>
+          Math.abs(curr.boundingClientRect.top) <
+          Math.abs(prev.boundingClientRect.top)
+            ? curr
+            : prev
+        );
+
+        const pageNum = Number(topEntry.target.getAttribute("data-page-number"));
+        if (pageNum) {
+          if (debounceTimer) clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(() => {
+            if (!isProgrammaticScroll.current) {
               onVisiblePageChange(pageNum);
             }
-          }
+          }, 100);
         }
       },
       {
         root: null,
-        rootMargin: "-20% 0px -60% 0px",
-        threshold: 0,
+        rootMargin: "-10% 0px -40% 0px",
+        threshold: [0, 0.25, 0.5, 0.75],
       }
     );
 
@@ -88,8 +179,13 @@ export default function PdfViewer({
       if (element) observer.observe(element);
     });
 
-    return () => observer.disconnect();
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      observer.disconnect();
+    };
   }, [pages, onVisiblePageChange]);
+
+  const renderedWidth = containerWidth * scale;
 
   return (
     <div
@@ -98,29 +194,13 @@ export default function PdfViewer({
     >
       <div className="flex flex-col items-center gap-8 w-full">
         {pages.map((pageNum) => (
-          <div
+          <PdfPageItem
             key={pageNum}
-            data-page-number={pageNum}
-            ref={(el) => {
-              if (el) pageRefs.current.set(pageNum, el);
-              else pageRefs.current.delete(pageNum);
-            }}
-            className="flex flex-col items-center w-full"
-          >
-            <div className="shadow-lg rounded-lg overflow-hidden bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
-              <Page
-                pdf={pdf}
-                pageNumber={pageNum}
-                width={containerWidth * scale}
-                renderTextLayer={true}
-                renderAnnotationLayer={true}
-                className="transition-all duration-150"
-              />
-            </div>
-            <span className="mt-2 text-xs font-medium text-zinc-400">
-              Página {pageNum}
-            </span>
-          </div>
+            pdf={pdf}
+            pageNum={pageNum}
+            width={renderedWidth}
+            onMountElement={handleMountElement}
+          />
         ))}
 
         {/* End of Chapter Card */}
