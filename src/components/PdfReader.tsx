@@ -38,10 +38,13 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
     extractChapters,
   } = useChapters();
 
-  const handleDocumentLoadSuccess = (pdf: PDFDocumentProxy) => {
-    setNumPages(pdf.numPages);
-    extractChapters(pdf, pdf.numPages);
-  };
+  const handleDocumentLoadSuccess = useCallback(
+    (pdf: PDFDocumentProxy) => {
+      setNumPages(pdf.numPages);
+      extractChapters(pdf, pdf.numPages);
+    },
+    [extractChapters]
+  );
 
   // Flattened list of chapters for linear navigation (next / previous)
   const flattenedChapters = useMemo(() => {
@@ -122,7 +125,7 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
   );
 
   const handleVisiblePageChange = useCallback((pageNum: number) => {
-    setCurrentPage(pageNum);
+    setCurrentPage((prev) => (prev !== pageNum ? pageNum : prev));
     setScrollToPage(undefined); // Clear requested scroll target once scrolling naturally
   }, []);
 

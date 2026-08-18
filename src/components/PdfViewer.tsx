@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import "react-pdf/dist/Page/AnnotationLayer.css";
@@ -40,23 +40,12 @@ export default function PdfViewer({
 }: PdfViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState<number>(650);
-  const [fileUrl, setFileUrl] = useState<string | null>(null);
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
-
-  // Generate object URL for the local file
-  useEffect(() => {
-    const url = URL.createObjectURL(file);
-    setFileUrl(url);
-    return () => {
-      URL.revokeObjectURL(url);
-    };
-  }, [file]);
 
   // Adjust page width responsively
   const updateWidth = useCallback(() => {
     if (containerRef.current) {
       const width = containerRef.current.clientWidth;
-      // Cap at 850px for reading comfort, minus container padding
       setContainerWidth(Math.min(width - 32, 850));
     }
   }, []);
@@ -67,13 +56,13 @@ export default function PdfViewer({
     return () => window.removeEventListener("resize", updateWidth);
   }, [updateWidth]);
 
-  // Page range for the current chapter
-  const pages = Array.from(
-    { length: Math.max(1, endPage - startPage + 1) },
-    (_, i) => startPage + i
-  );
+  // Memoize page range for current chapter to avoid recreation on every render
+  const pages = useMemo(() => {
+    const count = Math.max(1, endPage - startPage + 1);
+    return Array.from({ length: count }, (_, i) => startPage + i);
+  }, [startPage, endPage]);
 
-  // Scroll to a specific page when requested or when startPage changes
+  // Scroll to a specific page when requested or when chapter changes
   useEffect(() => {
     const targetPage = scrollToPage || startPage;
     const pageEl = pageRefs.current.get(targetPage);
@@ -109,21 +98,13 @@ export default function PdfViewer({
     return () => observer.disconnect();
   }, [pages, onVisiblePageChange]);
 
-  if (!fileUrl) {
-    return (
-      <div className="flex items-center justify-center p-12 text-zinc-500">
-        Cargando archivo...
-      </div>
-    );
-  }
-
   return (
     <div
       ref={containerRef}
       className="flex flex-col items-center w-full max-w-4xl mx-auto py-6 px-2 sm:px-4"
     >
       <Document
-        file={fileUrl}
+        file={file}
         onLoadSuccess={onDocumentLoadSuccess}
         loading={
           <div className="flex flex-col items-center justify-center p-16 space-y-3">
