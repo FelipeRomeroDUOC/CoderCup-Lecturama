@@ -5,10 +5,13 @@ import { Document, pdfjs } from "react-pdf";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { useChapters } from "@/hooks/useChapters";
 import { useGamification } from "@/hooks/useGamification";
+import { extractChapterText } from "@/lib/pdfTextExtractor";
 import { Chapter } from "@/types/pdf";
+import { QuizQuestion } from "@/types/quiz";
 import ChapterSidebar from "@/components/ChapterSidebar";
 import PdfNavigation from "@/components/PdfNavigation";
 import PdfViewer from "@/components/PdfViewer";
+import QuizModal from "@/components/QuizModal";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 
@@ -46,6 +49,12 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
   const [activeChapterId, setActiveChapterId] = useState<string | null>(null);
   const [scrollToPage, setScrollToPage] = useState<number | undefined>(undefined);
+
+  // Quiz state
+  const [isQuizOpen, setIsQuizOpen] = useState<boolean>(false);
+  const [isLoadingQuiz, setIsLoadingQuiz] = useState<boolean>(false);
+  const [quizError, setQuizError] = useState<string | null>(null);
+  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
 
   // Memoize stable file reference
   const stableFile = useMemo(() => file, [file]);
@@ -85,6 +94,7 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
   const {
     isChapterCompleted,
     isChapterUnlocked,
+    markChapterCompleted,
   } = useGamification({
     chapters: flattenedChapters,
     bookTitle: file.name,
@@ -155,7 +165,6 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
       if (targetChapterIdx >= 0) {
         const targetChapter = flattenedChapters[targetChapterIdx];
         if (!isChapterUnlocked(targetChapter.id, targetChapterIdx)) {
-          // Page belongs to a locked chapter
           return;
         }
 
@@ -173,6 +182,67 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
   const handleVisiblePageChange = useCallback((pageNum: number) => {
     setCurrentPage((prev) => (prev !== pageNum ? pageNum : prev));
   }, []);
+
+  // Launch quiz on demand by extracting chapter text and fetching questions
+  const handleStartQuiz = useCallback(async () => {
+    if (!pdfDocument || !activeChapter) return;
+
+    setIsLoadingQuiz(true);
+    setQuizError(null);
+
+    try {
+      // 1. Extract plain text from the chapter's pages
+      const chapterText = await extractChapterText(
+        pdfDocument,
+        activeChapter.startPage,
+        activeChapter.endPage
+      );
+
+      if (!chapterText || chapterText.length < 30) {
+        throw new Error(
+          "No se pudo extraer suficiente texto de este capítulo para formular el quiz."
+        );
+      }
+
+      // 2. Request questions from the backend
+      const response = await fetch(
+        `/api/chapters/${encodeURIComponent(activeChapter.id)}/questions`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chapterText,
+            chapterTitle: activeChapter.title,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Error al obtener las preguntas del quiz.");
+      }
+
+      if (Array.isArray(data.questions) && data.questions.length > 0) {
+        setQuizQuestions(data.questions);
+        setIsQuizOpen(true);
+      } else {
+        throw new Error("No se recibieron preguntas válidas para este capítulo.");
+      }
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Error inesperado al iniciar el quiz.";
+      setQuizError(message);
+    } finally {
+      setIsLoadingQuiz(false);
+    }
+  }, [pdfDocument, activeChapter]);
+
+  const handleQuizSuccess = useCallback(() => {
+    if (activeChapter) {
+      markChapterCompleted(activeChapter.id, currentChapterIndex);
+    }
+  }, [activeChapter, currentChapterIndex, markChapterCompleted]);
 
   const zoomIn = () => setScale((prev) => Math.min(prev + 0.15, 2.0));
   const zoomOut = () => setScale((prev) => Math.max(prev - 0.15, 0.6));
@@ -263,6 +333,20 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
         />
 
         <div className="flex flex-col flex-1 h-full overflow-y-auto relative">
+          {/* Error Banner if Quiz initiation failed */}
+          {quizError && (
+            <div className="mx-4 mt-4 p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 flex items-center justify-between text-rose-800 dark:text-rose-300 text-sm">
+              <span>⚠️ {quizError}</span>
+              <button
+                type="button"
+                onClick={() => setQuizError(null)}
+                className="text-xs underline hover:text-rose-900 ml-4"
+              >
+                Cerrar
+              </button>
+            </div>
+          )}
+
           <Document
             file={stableFile}
             onLoadSuccess={handleDocumentLoadSuccess}
@@ -287,6 +371,7 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
                   isNextChapterUnlocked={isNextUnlocked}
                   onNextChapter={handleNextChapter}
                   onPrevChapter={handlePrevChapter}
+                  onStartQuiz={handleStartQuiz}
                   scrollToPage={scrollToPage}
                 />
               </main>
@@ -308,6 +393,30 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
           )}
         </div>
       </div>
+
+      {/* Loading Overlay when generating/fetching quiz questions */}
+      {isLoadingQuiz && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 text-white space-y-4">
+          <div className="w-12 h-12 border-4 border-amber-400 border-t-transparent rounded-full animate-spin" />
+          <div className="text-center space-y-1">
+            <h3 className="text-lg font-bold">Generando Desafío con IA...</h3>
+            <p className="text-sm text-zinc-300 max-w-sm">
+              Analizando el contenido del capítulo para formular tus 5 preguntas de comprensión.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Interactive Quiz Modal */}
+      {activeChapter && (
+        <QuizModal
+          isOpen={isQuizOpen}
+          onClose={() => setIsQuizOpen(false)}
+          chapterTitle={activeChapter.title}
+          questions={quizQuestions}
+          onCompleteSuccess={handleQuizSuccess}
+        />
+      )}
     </div>
   );
 }
