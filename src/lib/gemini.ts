@@ -56,6 +56,7 @@ export async function generateChapterQuiz(
   chapterTitle?: string
 ): Promise<QuizQuestion[]> {
   const ai = getGeminiClient();
+  const modelName = process.env.GEMINI_MODEL || "gemini-3.6-flash";
 
   const cleanText = chapterText.trim().replace(/\s+/g, " ");
   if (!cleanText || cleanText.length < 50) {
@@ -87,7 +88,7 @@ ${truncatedText}
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: modelName,
         contents: prompt,
         config: {
           responseMimeType: "application/json",
