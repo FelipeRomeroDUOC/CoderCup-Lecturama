@@ -12,7 +12,15 @@ function getGeminiClient(): GoogleGenAI {
   return new GoogleGenAI({ apiKey });
 }
 
-// JSON Schema definition for structured outputs
+interface RawGeminiQuestion {
+  id?: string;
+  question: string;
+  options: string[];
+  correctAnswerText: string;
+  explanation?: string;
+}
+
+// JSON Schema definition for structured outputs using exact text matching
 const quizResponseSchema = {
   type: Type.ARRAY,
   description: "Lista de exactamente 5 preguntas de opción múltiple sobre el capítulo",
@@ -32,16 +40,16 @@ const quizResponseSchema = {
         items: { type: Type.STRING },
         description: "Exactamente 4 opciones de respuesta distintas y plausibles",
       },
-      correctOptionIndex: {
-        type: Type.INTEGER,
-        description: "Índice entero (0, 1, 2 o 3) de la opción correcta",
+      correctAnswerText: {
+        type: Type.STRING,
+        description: "El texto exacto de la opción que es la respuesta correcta (debe coincidir con una de las 4 opciones)",
       },
       explanation: {
         type: Type.STRING,
-        description: "Breve explicación de por qué la opción es correcta según el texto",
+        description: "Breve explicación de por qué esta opción es la correcta según el texto",
       },
     },
-    required: ["id", "question", "options", "correctOptionIndex"],
+    required: ["id", "question", "options", "correctAnswerText"],
   },
 };
 
@@ -59,6 +67,30 @@ function shuffleArray<T>(array: T[]): T[] {
     arr[j] = temp;
   }
   return arr;
+}
+
+/**
+ * Finds the index of the option that matches the correct answer text.
+ * Prevents LLM off-by-one numeric indexing errors.
+ */
+function findCorrectIndex(options: string[], targetText?: string): number {
+  if (!targetText) return 0;
+  const normalizedTarget = targetText.trim().toLowerCase();
+
+  // 1. Exact match
+  const exactIndex = options.findIndex(
+    (opt) => opt.trim().toLowerCase() === normalizedTarget
+  );
+  if (exactIndex >= 0) return exactIndex;
+
+  // 2. Contains / Substring match
+  const partialIndex = options.findIndex((opt) => {
+    const normOpt = opt.trim().toLowerCase();
+    return normOpt.includes(normalizedTarget) || normalizedTarget.includes(normOpt);
+  });
+  if (partialIndex >= 0) return partialIndex;
+
+  return 0;
 }
 
 /**
@@ -144,7 +176,7 @@ ${audienceGuidelines}
 Prohibiciones estrictas en todas las dificultades:
 - NUNCA formules preguntas de memorización de datos aislados (fechas, cifras numéricas secundarias, nombres propios de objetos o sustantivos sueltos que se puedan responder escaneando una sola frase).
 - Cada pregunta debe requerir haber entendido el significado del pasaje.
-- Solo una de las 4 opciones debe ser la correcta según los hechos del texto.
+- El campo "correctAnswerText" DEBE ser una copia literal y exacta de una de las 4 opciones del arreglo "options".
 
 Texto del capítulo:
 """
@@ -200,16 +232,17 @@ export async function generateChapterQuiz(
         throw new Error("Gemini devolvió una respuesta vacía.");
       }
 
-      const parsed = JSON.parse(rawJson) as QuizQuestion[];
+      const parsed = JSON.parse(rawJson) as RawGeminiQuestion[];
 
       if (!Array.isArray(parsed) || parsed.length === 0) {
         throw new Error("El formato de preguntas devuelto no es válido.");
       }
 
-      // Format, validate, and randomly shuffle options to eliminate letter biases
+      // Match correct answer by text and shuffle options
       const validatedQuestions: QuizQuestion[] = parsed.slice(0, 5).map((q, index) => {
+        const correctIndex = findCorrectIndex(q.options, q.correctAnswerText);
         const { options: shuffledOptions, correctOptionIndex: shuffledIndex } =
-          shuffleOptionsAndIndex(q.options, q.correctOptionIndex);
+          shuffleOptionsAndIndex(q.options, correctIndex);
 
         return {
           id: q.id || `q${index + 1}`,
