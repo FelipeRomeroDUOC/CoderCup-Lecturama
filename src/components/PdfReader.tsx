@@ -244,6 +244,18 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
     }
   }, [activeChapter, currentChapterIndex, markChapterCompleted]);
 
+  const handleAdvanceToNextChapter = useCallback(() => {
+    if (
+      currentChapterIndex >= 0 &&
+      currentChapterIndex < flattenedChapters.length - 1
+    ) {
+      const nextChapter = flattenedChapters[currentChapterIndex + 1];
+      setActiveChapterId(nextChapter.id);
+      setCurrentPage(nextChapter.startPage);
+      setScrollToPage(nextChapter.startPage);
+    }
+  }, [currentChapterIndex, flattenedChapters]);
+
   const zoomIn = () => setScale((prev) => Math.min(prev + 0.15, 2.0));
   const zoomOut = () => setScale((prev) => Math.max(prev - 0.15, 0.6));
   const zoomReset = () => setScale(1.0);
@@ -410,11 +422,13 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
       {/* Interactive Quiz Modal */}
       {activeChapter && (
         <QuizModal
+          key={`${activeChapter.id}-${quizQuestions.length}`}
           isOpen={isQuizOpen}
           onClose={() => setIsQuizOpen(false)}
           chapterTitle={activeChapter.title}
           questions={quizQuestions}
           onCompleteSuccess={handleQuizSuccess}
+          onAdvanceToNextChapter={handleAdvanceToNextChapter}
         />
       )}
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { QuizQuestion } from "@/types/quiz";
 
 interface QuizModalProps {
@@ -9,6 +9,7 @@ interface QuizModalProps {
   chapterTitle: string;
   questions: QuizQuestion[];
   onCompleteSuccess: () => void;
+  onAdvanceToNextChapter?: () => void;
 }
 
 export default function QuizModal({
@@ -17,6 +18,7 @@ export default function QuizModal({
   chapterTitle,
   questions,
   onCompleteSuccess,
+  onAdvanceToNextChapter,
 }: QuizModalProps) {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
   const [selectedOptionIndex, setSelectedOptionIndex] = useState<number | null>(null);
@@ -36,9 +38,16 @@ export default function QuizModal({
     setCorrectAnswersCount(0);
   }, []);
 
+  // Reset quiz state when modal opens or questions change
+  useEffect(() => {
+    if (isOpen) {
+      resetQuiz();
+    }
+  }, [isOpen, questions, resetQuiz]);
+
   if (!isOpen || questions.length === 0) return null;
 
-  const currentQuestion = questions[currentQuestionIndex];
+  const currentQuestion = questions[currentQuestionIndex] || questions[0];
   const totalQuestions = questions.length;
   const progressPercent = Math.round(
     ((currentQuestionIndex + (isAnswerSubmitted ? 1 : 0)) / totalQuestions) * 100
@@ -72,6 +81,13 @@ export default function QuizModal({
       // Completed all questions with at least 1 life
       setIsVictory(true);
       onCompleteSuccess();
+    }
+  };
+
+  const handleVictoryContinue = () => {
+    onClose();
+    if (onAdvanceToNextChapter) {
+      onAdvanceToNextChapter();
     }
   };
 
@@ -141,10 +157,10 @@ export default function QuizModal({
               <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
                 <button
                   type="button"
-                  onClick={onClose}
-                  className="w-full sm:w-auto px-6 py-3 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-500 shadow-md transition-all"
+                  onClick={handleVictoryContinue}
+                  className="w-full sm:w-auto px-6 py-3 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-500 shadow-md transition-all flex items-center justify-center gap-2"
                 >
-                  Continuar Lectura ➔
+                  <span>Continuar Lectura ➔</span>
                 </button>
               </div>
             </div>
