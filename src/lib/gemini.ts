@@ -151,6 +151,9 @@ ${truncatedText}
           responseMimeType: "application/json",
           responseSchema: quizResponseSchema,
           temperature: 0.75,
+          thinkingConfig: {
+            thinkingBudget: 1024,
+          },
         },
       });
 
