@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { QuizQuestion } from "@/types/quiz";
+import { QuizQuestion, QuizDifficulty } from "@/types/quiz";
 
 // Initialize client on demand
 function getGeminiClient(): GoogleGenAI {
@@ -93,12 +93,73 @@ function shuffleOptionsAndIndex(
 }
 
 /**
+ * Builds calibrated prompt tailored to the selected target audience / difficulty level.
+ */
+function buildCalibratedPrompt(
+  chapterText: string,
+  chapterTitle?: string,
+  difficulty: QuizDifficulty = "medium"
+): string {
+  let audienceGuidelines = "";
+
+  if (difficulty === "basic") {
+    audienceGuidelines = `PÚBLICO OBJETIVO: Niños y escolares de Educación Básica / Primaria (8 a 12 años).
+- LENGUAJE: Muy claro, directo, sencillo y amigable. No uses vocabulario rebuscado ni palabras difíciles.
+- OPCIONES: Breves (1 sola línea corta por opción). Fáciles y rápidas de leer.
+- ENFOQUE DE LAS 5 PREGUNTAS:
+  1. Sentimientos y Emociones: ¿Cómo se sentía el personaje y por qué?
+  2. Motivo evidente: ¿Por qué ocurrió un acontecimiento clave en la historia?
+  3. Causa y consecuencia: ¿Qué pasó después de que un personaje tomó una decisión?
+  4. Moraleja o Idea Central: ¿Qué enseñanza o mensaje importante nos deja este capítulo?
+  5. Acción y desenlace: ¿Cómo se resolvió el momento más importante del capítulo?`;
+  } else if (difficulty === "advanced") {
+    audienceGuidelines = `PÚBLICO OBJETIVO: Lectores avanzados y adultos.
+- LENGUAJE: Maduro, analítico y preciso.
+- ENFOQUE DE LAS 5 PREGUNTAS:
+  1. Dilema moral y psicología: ¿Qué conflicto ético o contradicción interna define a los personajes?
+  2. Subtexto e inferencia: ¿Qué simbolismos, atmósfera o intenciones ocultas subyacen en la narrativa?
+  3. Estructura y causalidad: ¿Qué cadena de causa-efecto altera la trama?
+  4. Crítica y tema universal: ¿Qué reflexión profunda plantea este pasaje?
+  5. Transformación del punto de vista: ¿Cómo cambia el tono o la perspectiva al concluir el capítulo?`;
+  } else {
+    // medium (default)
+    audienceGuidelines = `PÚBLICO OBJETIVO: Jóvenes y estudiantes de Educación Media / Secundaria (13 a 17 años).
+- LENGUAJE: Natural, dinámico y comprensible. Evita tecnicismos innecesarios.
+- OPCIONES: Claramente redactadas, verosímiles y enfocadas en la trama.
+- ENFOQUE DE LAS 5 PREGUNTAS:
+  1. Motivación y conflicto: ¿Por qué un personaje toma cierta decisión o qué problema enfrenta?
+  2. Inferencia y contexto: ¿Qué se puede deducir sobre la situación que no esté dicho con palabras literales?
+  3. Causa y efecto: ¿Qué consecuencias directas tienen las acciones principales de este capítulo?
+  4. Idea principal: ¿Cuál es el acontecimiento o tema central de este fragmento?
+  5. Cambio de situación: ¿Cómo cambia la relación entre los personajes o el estado de las cosas a lo largo del capítulo?`;
+  }
+
+  return `Eres un docente y pedagogo experto en comprensión lectora y gamificación.
+Tu objetivo es formular un desafío de COMPRENSIÓN LECTORA adaptado para el siguiente capítulo${
+    chapterTitle ? ` titulado "${chapterTitle}"` : ""
+  }.
+
+${audienceGuidelines}
+
+Prohibiciones estrictas en todas las dificultades:
+- NUNCA formules preguntas de memorización de datos aislados (fechas, cifras numéricas secundarias, nombres propios de objetos o sustantivos sueltos que se puedan responder escaneando una sola frase).
+- Cada pregunta debe requerir haber entendido el significado del pasaje.
+- Solo una de las 4 opciones debe ser la correcta según los hechos del texto.
+
+Texto del capítulo:
+"""
+${chapterText}
+"""`;
+}
+
+/**
  * Generates 5 multiple-choice questions for a book chapter using Gemini AI.
- * Includes bounded retries (max 2 retries, 1s & 2s backoff) compatible with Vercel Serverless.
+ * Tailored to basic, medium, or advanced difficulty levels.
  */
 export async function generateChapterQuiz(
   chapterText: string,
-  chapterTitle?: string
+  chapterTitle?: string,
+  difficulty: QuizDifficulty = "medium"
 ): Promise<QuizQuestion[]> {
   const ai = getGeminiClient();
   const modelName = process.env.GEMINI_MODEL || "gemini-3.6-flash";
@@ -114,30 +175,7 @@ export async function generateChapterQuiz(
   const truncatedText =
     cleanText.length > 40000 ? cleanText.slice(0, 40000) + "..." : cleanText;
 
-  const prompt = `Eres un docente experto en análisis literario y comprensión crítica profunda.
-Tu objetivo es formular un desafío de ALTO NIVEL DE COMPRENSIÓN para el lector sobre el siguiente capítulo${
-    chapterTitle ? ` titulado "${chapterTitle}"` : ""
-  }.
-
-Prohibiciones estrictas:
-- NUNCA formules preguntas fácticas o de memoria superficial, como "¿Qué objeto/animal tenía...?", "¿Cómo se llama...?", "¿Dónde ocurrió...?", "¿Qué comió...?".
-- NUNCA hagas preguntas cuya respuesta sea un dato puntual que se pueda encontrar escaneando una sola frase sin entender el contexto.
-
-Tipos de preguntas obligatorias (exactamente 5 en total):
-1. Conflicto y Motivación: ¿Por qué un personaje toma cierta decisión o qué dilema emocional/moral enfrenta?
-2. Inferencia y Subtexto: ¿Qué revela el comportamiento de los personajes, el tono o la atmósfera de la escena que no se dice explícitamente?
-3. Causa y Efecto: ¿Qué consecuencias directas o indirectas desatan las acciones principales ocurridas en el capítulo?
-4. Tema e Idea Central: ¿Cuál es el mensaje, crítica o significado más profundo de los acontecimientos de este fragmento?
-5. Cambio o Transformación: ¿Cómo evoluciona la situación, el conflicto o la perspectiva de los personajes a lo largo de este pasaje?
-
-Requisitos de las opciones:
-- Las 4 opciones deben ser análisis profundos, matizados y verosímiles; ninguna debe descartarse por ser absurda o ridícula.
-- Solo una opción debe ser la interpretación correcta basada en los hechos del texto.
-
-Texto del capítulo:
-"""
-${truncatedText}
-"""`;
+  const prompt = buildCalibratedPrompt(truncatedText, chapterTitle, difficulty);
 
   const maxRetries = 2;
   let lastError: unknown = null;
@@ -150,7 +188,7 @@ ${truncatedText}
         config: {
           responseMimeType: "application/json",
           responseSchema: quizResponseSchema,
-          temperature: 0.75,
+          temperature: difficulty === "basic" ? 0.6 : 0.75,
           thinkingConfig: {
             thinkingBudget: 1024,
           },

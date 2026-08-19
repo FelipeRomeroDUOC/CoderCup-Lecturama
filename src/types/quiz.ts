@@ -1,3 +1,5 @@
+export type QuizDifficulty = "basic" | "medium" | "advanced";
+
 export interface QuizQuestion {
   id: string;
   question: string;
@@ -9,6 +11,7 @@ export interface QuizQuestion {
 export interface ChapterQuiz {
   chapterId: string;
   chapterTitle?: string;
+  difficulty?: QuizDifficulty;
   questions: QuizQuestion[]; // exactly 5 questions
 }
 

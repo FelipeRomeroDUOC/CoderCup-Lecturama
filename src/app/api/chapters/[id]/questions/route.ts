@@ -6,6 +6,7 @@ import {
   saveChapterQuiz,
   getUserChapterProgress,
 } from "@/lib/quizStore";
+import { QuizDifficulty } from "@/types/quiz";
 
 // Maximum execution duration allowed on Vercel Serverless (Hobby plan)
 export const maxDuration = 60;
@@ -28,15 +29,23 @@ export async function POST(
       );
     }
 
+    const body = await request.json();
+    const { chapterText, chapterTitle, difficulty = "medium" } = body;
+    const validatedDifficulty: QuizDifficulty =
+      difficulty === "basic" || difficulty === "advanced" ? difficulty : "medium";
+
     const sessionId = await getOrCreateSessionId();
     const userProgress = await getUserChapterProgress(sessionId, chapterId);
 
-    // 1. Check if questions for this chapter are already cached
-    const existingQuestions = await getChapterQuiz(chapterId);
+    const cacheKey = `${chapterId}_${validatedDifficulty}`;
+
+    // 1. Check if questions for this chapter and difficulty level are already cached
+    const existingQuestions = await getChapterQuiz(cacheKey);
     if (existingQuestions && existingQuestions.length > 0) {
       return NextResponse.json({
         sessionId,
         chapterId,
+        difficulty: validatedDifficulty,
         isCached: true,
         remainingLives: userProgress.remainingLives,
         isCompleted: userProgress.isCompleted,
@@ -45,9 +54,6 @@ export async function POST(
     }
 
     // 2. If not cached yet, validate input chapterText
-    const body = await request.json();
-    const { chapterText, chapterTitle } = body;
-
     if (
       !chapterText ||
       typeof chapterText !== "string" ||
@@ -62,16 +68,21 @@ export async function POST(
       );
     }
 
-    // 3. Generate 5 structured questions with Gemini AI
-    const questions = await generateChapterQuiz(chapterText, chapterTitle);
+    // 3. Generate 5 structured questions with Gemini AI calibrated for the selected difficulty
+    const questions = await generateChapterQuiz(
+      chapterText,
+      chapterTitle,
+      validatedDifficulty
+    );
 
     // 4. Save questions in store for subsequent requests/retries
-    await saveChapterQuiz(chapterId, questions, chapterTitle);
+    await saveChapterQuiz(cacheKey, questions, chapterTitle);
 
     return NextResponse.json({
       sessionId,
       chapterId,
       chapterTitle: chapterTitle || `Capítulo ${chapterId}`,
+      difficulty: validatedDifficulty,
       isCached: false,
       remainingLives: userProgress.remainingLives,
       isCompleted: userProgress.isCompleted,

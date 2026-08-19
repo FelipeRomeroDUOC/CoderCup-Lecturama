@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { Document, pdfjs } from "react-pdf";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { useChapters } from "@/hooks/useChapters";
 import { useGamification } from "@/hooks/useGamification";
 import { extractChapterText } from "@/lib/pdfTextExtractor";
 import { Chapter } from "@/types/pdf";
-import { QuizQuestion } from "@/types/quiz";
+import { QuizQuestion, QuizDifficulty } from "@/types/quiz";
 import ChapterSidebar from "@/components/ChapterSidebar";
 import PdfNavigation from "@/components/PdfNavigation";
 import PdfViewer from "@/components/PdfViewer";
@@ -49,6 +49,30 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
   const [activeChapterId, setActiveChapterId] = useState<string | null>(null);
   const [scrollToPage, setScrollToPage] = useState<number | undefined>(undefined);
+
+  // Difficulty level (defaults to 'medium')
+  const [difficulty, setDifficulty] = useState<QuizDifficulty>("medium");
+
+  // Load saved difficulty from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("codercup_difficulty");
+      if (saved === "basic" || saved === "medium" || saved === "advanced") {
+        setDifficulty(saved);
+      }
+    } catch {
+      // Ignore
+    }
+  }, []);
+
+  const handleDifficultyChange = (newDifficulty: QuizDifficulty) => {
+    setDifficulty(newDifficulty);
+    try {
+      localStorage.setItem("codercup_difficulty", newDifficulty);
+    } catch {
+      // Ignore
+    }
+  };
 
   // Quiz state
   const [isQuizOpen, setIsQuizOpen] = useState<boolean>(false);
@@ -205,7 +229,7 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
         );
       }
 
-      // 2. Request questions from the backend
+      // 2. Request questions from the backend with selected difficulty
       const response = await fetch(
         `/api/chapters/${encodeURIComponent(activeChapter.id)}/questions`,
         {
@@ -214,6 +238,7 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
           body: JSON.stringify({
             chapterText,
             chapterTitle: activeChapter.title,
+            difficulty,
           }),
         }
       );
@@ -237,7 +262,7 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
     } finally {
       setIsLoadingQuiz(false);
     }
-  }, [pdfDocument, activeChapter]);
+  }, [pdfDocument, activeChapter, difficulty]);
 
   const handleQuizSuccess = useCallback(() => {
     if (activeChapter) {
@@ -316,8 +341,31 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
           </span>
         </div>
 
-        {/* Zoom Controls, Dev Tool & Close */}
+        {/* Difficulty Selector, Zoom Controls, Dev Tool & Close */}
         <div className="flex items-center gap-2">
+          {/* Difficulty Level Selector */}
+          <div className="flex items-center gap-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-lg px-2 py-1 border border-zinc-200 dark:border-zinc-700 text-xs">
+            <span className="font-semibold text-zinc-500 dark:text-zinc-400 hidden md:inline">
+              Nivel:
+            </span>
+            <select
+              value={difficulty}
+              onChange={(e) => handleDifficultyChange(e.target.value as QuizDifficulty)}
+              className="bg-transparent font-medium text-zinc-800 dark:text-zinc-200 focus:outline-none cursor-pointer"
+              title="Selecciona el nivel de dificultad adaptado para el lector"
+            >
+              <option value="basic" className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100">
+                🧒 Básica (8-12 años)
+              </option>
+              <option value="medium" className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100">
+                🧑‍🎓 Media (13-17 años)
+              </option>
+              <option value="advanced" className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100">
+                🎓 Avanzada (Adultos)
+              </option>
+            </select>
+          </div>
+
           {/* Developer Reset Tool Button */}
           <button
             type="button"
