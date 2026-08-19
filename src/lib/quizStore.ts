@@ -104,3 +104,11 @@ export async function completeChapter(
   }
   return progress;
 }
+
+/**
+ * Developer helper: Clears all cached quizzes and user progress in memory.
+ */
+export async function clearQuizStore(): Promise<void> {
+  storage.quizzes.clear();
+  storage.progress.clear();
+}

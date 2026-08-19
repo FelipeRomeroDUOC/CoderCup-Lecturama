@@ -95,6 +95,7 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
     isChapterCompleted,
     isChapterUnlocked,
     markChapterCompleted,
+    resetProgress,
   } = useGamification({
     chapters: flattenedChapters,
     bookTitle: file.name,
@@ -256,6 +257,30 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
     }
   }, [currentChapterIndex, flattenedChapters]);
 
+  // Developer Reset Handler
+  const handleDevReset = useCallback(async () => {
+    if (
+      !window.confirm(
+        "🛠️ [MODO DESARROLLADOR]\n\n¿Estás seguro de que deseas reiniciar todos los niveles, bloquearlos nuevamente y borrar las preguntas en caché?"
+      )
+    ) {
+      return;
+    }
+
+    try {
+      await fetch("/api/dev/reset", { method: "POST" });
+      resetProgress();
+      if (flattenedChapters.length > 0) {
+        setActiveChapterId(flattenedChapters[0].id);
+        setCurrentPage(flattenedChapters[0].startPage);
+        setScrollToPage(flattenedChapters[0].startPage);
+      }
+      alert("✅ Progreso y preguntas en caché reiniciados con éxito.");
+    } catch (err) {
+      console.error("Error al reiniciar progreso dev:", err);
+    }
+  }, [resetProgress, flattenedChapters]);
+
   const zoomIn = () => setScale((prev) => Math.min(prev + 0.15, 2.0));
   const zoomOut = () => setScale((prev) => Math.max(prev - 0.15, 0.6));
   const zoomReset = () => setScale(1.0);
@@ -291,8 +316,19 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
           </span>
         </div>
 
-        {/* Zoom Controls & Close */}
+        {/* Zoom Controls, Dev Tool & Close */}
         <div className="flex items-center gap-2">
+          {/* Developer Reset Tool Button */}
+          <button
+            type="button"
+            onClick={handleDevReset}
+            className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-800/60 hover:bg-amber-200 dark:hover:bg-amber-900 transition-all flex items-center gap-1.5"
+            title="Herramienta Dev: Reiniciar libro, bloquear niveles y vaciar preguntas"
+          >
+            <span>🛠️</span>
+            <span>Reset [DEV]</span>
+          </button>
+
           <div className="hidden sm:flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 rounded-lg p-0.5 border border-zinc-200 dark:border-zinc-700 text-xs">
             <button
               type="button"
