@@ -70,12 +70,21 @@ export async function generateChapterQuiz(
     cleanText.length > 40000 ? cleanText.slice(0, 40000) + "..." : cleanText;
 
   const prompt = `Eres un asistente pedagógico de lectura y gamificación.
-Tu objetivo es evaluar la comprensión lectora del usuario sobre el siguiente capítulo${
+Tu objetivo es evaluar la COMPRENSIÓN LECTORA del usuario sobre el siguiente capítulo${
     chapterTitle ? ` titulado "${chapterTitle}"` : ""
-  }.
+  }, no su memoria de datos puntuales.
 
-Genera exactamente 5 preguntas de opción múltiple basadas exclusivamente en los hechos, ideas o acontecimientos narrados en el texto.
-Cada pregunta debe tener exactamente 4 opciones, donde solo una es la correcta.
+Genera exactamente 5 preguntas de opción múltiple que evalúen distintos niveles de comprensión:
+- Al menos 1 pregunta de inferencia (algo que el texto sugiere pero no dice explícitamente).
+- Al menos 1 pregunta sobre relación causa-efecto o motivación de un personaje (por qué ocurre algo, no solo qué ocurre).
+- Al menos 1 pregunta sobre idea principal, propósito o tema del fragmento.
+- Como máximo 1 pregunta puede ser de comprensión literal directa, y solo si es clave para seguir la trama.
+
+Reglas para evitar preguntas de memorización:
+- NO preguntes por fechas, cifras, nombres propios secundarios o detalles que se puedan responder localizando una sola frase sin entender el contexto.
+- Cada pregunta debe requerir haber entendido el pasaje, no solo haberlo "escaneado".
+- Las 4 opciones deben ser plausibles para alguien que leyó el texto por encima; evita distractores absurdos o que se descarten sin pensar.
+- Solo una opción debe ser correcta, y debe basarse exclusivamente en lo narrado en el texto (sin inventar información externa).
 
 Texto del capítulo:
 """
