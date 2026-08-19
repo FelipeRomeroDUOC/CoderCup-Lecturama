@@ -222,7 +222,7 @@ export async function generateChapterQuiz(
           responseSchema: quizResponseSchema,
           temperature: difficulty === "basic" ? 0.6 : 0.75,
           thinkingConfig: {
-            thinkingBudget: 0,
+            thinkingBudget: 512,
           },
         },
       });
