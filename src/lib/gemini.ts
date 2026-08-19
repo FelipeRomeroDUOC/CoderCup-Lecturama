@@ -48,6 +48,20 @@ const quizResponseSchema = {
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
+ * Generic Fisher-Yates array shuffle.
+ */
+function shuffleArray<T>(array: T[]): T[] {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const temp = arr[i];
+    arr[i] = arr[j];
+    arr[j] = temp;
+  }
+  return arr;
+}
+
+/**
  * Randomly shuffles options and recalculates the correctOptionIndex using Fisher-Yates algorithm.
  * Guarantees a 100% uniform 25% distribution across all 4 option positions (A, B, C, D).
  */
@@ -67,15 +81,10 @@ function shuffleOptionsAndIndex(
   }));
 
   // Fisher-Yates shuffle
-  for (let i = paired.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    const temp = paired[i];
-    paired[i] = paired[j];
-    paired[j] = temp;
-  }
+  const shuffledPaired = shuffleArray(paired);
 
-  const shuffledOptions = paired.map((p) => p.text);
-  const newCorrectIndex = paired.findIndex((p) => p.isCorrect);
+  const shuffledOptions = shuffledPaired.map((p) => p.text);
+  const newCorrectIndex = shuffledPaired.findIndex((p) => p.isCorrect);
 
   return {
     options: shuffledOptions,
@@ -170,7 +179,8 @@ ${truncatedText}
         };
       });
 
-      return validatedQuestions;
+      // Also shuffle the order of the 5 questions
+      return shuffleArray(validatedQuestions);
     } catch (err: unknown) {
       lastError = err;
       const isRateLimit =
