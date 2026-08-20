@@ -102,6 +102,7 @@ interface PdfViewerProps {
   hasPrevChapter?: boolean;
   isCurrentChapterCompleted?: boolean;
   isNextChapterUnlocked?: boolean;
+  isNonPlayable?: boolean;
   onNextChapter?: () => void;
   onPrevChapter?: () => void;
   onStartQuiz?: () => void;
@@ -119,6 +120,7 @@ export default function PdfViewer({
   hasPrevChapter = false,
   isCurrentChapterCompleted = false,
   isNextChapterUnlocked = true,
+  isNonPlayable = false,
   onNextChapter,
   onPrevChapter,
   onStartQuiz,
@@ -130,7 +132,7 @@ export default function PdfViewer({
   const isProgrammaticScroll = useRef<boolean>(false);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const isPreliminary = isPreliminarySection(activeChapterTitle);
+  const isPreliminary = isPreliminarySection(activeChapterTitle) || isNonPlayable;
 
   // Register DOM elements per page
   const handleMountElement = useCallback(

@@ -6,6 +6,7 @@ import type { PDFDocumentProxy } from "pdfjs-dist";
 import { useChapters } from "@/hooks/useChapters";
 import { useGamification } from "@/hooks/useGamification";
 import { extractChapterText } from "@/lib/pdfTextExtractor";
+import { classifySectionLocally } from "@/lib/chapterClassifier";
 import { Chapter } from "@/types/pdf";
 import { QuizQuestion, QuizDifficulty } from "@/types/quiz";
 import ChapterSidebar from "@/components/ChapterSidebar";
@@ -52,6 +53,9 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
 
   // Difficulty level (defaults to 'medium')
   const [difficulty, setDifficulty] = useState<QuizDifficulty>("medium");
+
+  // Dynamic set of chapter IDs detected as non-playable filler
+  const [nonPlayableChapterIds, setNonPlayableChapterIds] = useState<string[]>([]);
 
   // Load saved difficulty from localStorage on mount
   useEffect(() => {
@@ -123,6 +127,7 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
   } = useGamification({
     chapters: flattenedChapters,
     bookTitle: file.name,
+    nonPlayableChapterIds,
   });
 
   // Current active chapter object
@@ -145,6 +150,74 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
   // Determine active start and end page
   const startPage = activeChapter ? activeChapter.startPage : 1;
   const endPage = activeChapter ? activeChapter.endPage : numPages;
+
+  // Hybrid filler detection: automatically checks active chapter if not already classified
+  useEffect(() => {
+    if (!pdfDocument || !activeChapter || currentChapterIndex < 0) return;
+
+    if (nonPlayableChapterIds.includes(activeChapter.id)) return;
+
+    let isMounted = true;
+
+    async function evaluateChapter() {
+      if (!pdfDocument || !activeChapter) return;
+      try {
+        const text = await extractChapterText(
+          pdfDocument,
+          activeChapter.startPage,
+          Math.min(activeChapter.endPage, activeChapter.startPage + 1)
+        );
+
+        const localResult = classifySectionLocally(
+          activeChapter.title,
+          text,
+          currentChapterIndex,
+          flattenedChapters.length
+        );
+
+        if (localResult.isKnownFiller) {
+          if (isMounted) {
+            setNonPlayableChapterIds((prev) =>
+              prev.includes(activeChapter.id) ? prev : [...prev, activeChapter.id]
+            );
+          }
+          return;
+        }
+
+        if (localResult.isAmbiguous) {
+          const res = await fetch(
+            `/api/chapters/${encodeURIComponent(activeChapter.id)}/classify`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                sectionTitle: activeChapter.title,
+                snippetText: text.slice(0, 1000),
+                index: currentChapterIndex,
+                totalSections: flattenedChapters.length,
+              }),
+            }
+          );
+          if (res.ok) {
+            const data = await res.json();
+            if (data.isPlayable === false && isMounted) {
+              setNonPlayableChapterIds((prev) =>
+                prev.includes(activeChapter.id) ? prev : [...prev, activeChapter.id]
+              );
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error evaluando jugabilidad del capítulo:", err);
+      }
+    }
+
+    evaluateChapter();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [pdfDocument, activeChapter, currentChapterIndex, flattenedChapters.length, nonPlayableChapterIds]);
 
   const handleSelectChapter = useCallback(
     (chapter: Chapter) => {
@@ -295,6 +368,7 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
     try {
       await fetch("/api/dev/reset", { method: "POST" });
       resetProgress();
+      setNonPlayableChapterIds([]);
       if (flattenedChapters.length > 0) {
         setActiveChapterId(flattenedChapters[0].id);
         setCurrentPage(flattenedChapters[0].startPage);
@@ -321,6 +395,10 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
           currentChapterIndex + 1
         )
       : false;
+
+  const isCurrentNonPlayable = activeChapter
+    ? nonPlayableChapterIds.includes(activeChapter.id)
+    : false;
 
   return (
     <div className="flex flex-col h-screen w-full bg-zinc-50 dark:bg-zinc-950 overflow-hidden">
@@ -426,6 +504,7 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
           onToggle={() => setIsSidebarOpen((prev) => !prev)}
           isChapterUnlocked={isChapterUnlocked}
           isChapterCompleted={isChapterCompleted}
+          nonPlayableChapterIds={nonPlayableChapterIds}
         />
 
         <div className="flex flex-col flex-1 h-full overflow-y-auto relative">
@@ -465,6 +544,7 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
                   hasPrevChapter={currentChapterIndex > 0}
                   isCurrentChapterCompleted={isCurrentCompleted}
                   isNextChapterUnlocked={isNextUnlocked}
+                  isNonPlayable={isCurrentNonPlayable}
                   onNextChapter={handleNextChapter}
                   onPrevChapter={handlePrevChapter}
                   onStartQuiz={handleStartQuiz}

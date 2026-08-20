@@ -7,16 +7,32 @@ import { isPreliminarySection } from "@/lib/chapterClassifier";
 interface UseGamificationProps {
   chapters: Chapter[];
   bookTitle?: string;
+  nonPlayableChapterIds?: string[];
 }
 
-export function useGamification({ chapters, bookTitle = "default_book" }: UseGamificationProps) {
+export function useGamification({
+  chapters,
+  bookTitle = "default_book",
+  nonPlayableChapterIds = [],
+}: UseGamificationProps) {
   const storageKey = `codercup_progress_${bookTitle.replace(/\s+/g, "_")}`;
+
+  const isFiller = useCallback(
+    (chapter?: Chapter): boolean => {
+      if (!chapter) return false;
+      return (
+        isPreliminarySection(chapter.title) ||
+        nonPlayableChapterIds.includes(chapter.id)
+      );
+    },
+    [nonPlayableChapterIds]
+  );
 
   // Find index of the first real playable chapter
   const firstPlayableIndex = useMemo(() => {
-    const idx = chapters.findIndex((c) => !isPreliminarySection(c.title));
+    const idx = chapters.findIndex((c) => !isFiller(c));
     return idx >= 0 ? idx : 0;
-  }, [chapters]);
+  }, [chapters, isFiller]);
 
   const [completedChapterIds, setCompletedChapterIds] = useState<string[]>([]);
   const [maxUnlockedIndex, setMaxUnlockedIndex] = useState<number>(firstPlayableIndex);
@@ -75,15 +91,15 @@ export function useGamification({ chapters, bookTitle = "default_book" }: UseGam
       if (chapters.length === 0) return true;
 
       const chapter = chapters[index];
-      // Preliminary sections (portada, indice) are always unlocked for free reading
-      if (chapter && isPreliminarySection(chapter.title)) {
+      // Preliminary/filler sections are always unlocked for free reading
+      if (isFiller(chapter)) {
         return true;
       }
 
       // Playable chapters unlock in sequence or if completed
       return index <= maxUnlockedIndex || completedChapterIds.includes(chapterId);
     },
-    [chapters, maxUnlockedIndex, completedChapterIds]
+    [chapters, maxUnlockedIndex, completedChapterIds, isFiller]
   );
 
   const markChapterCompleted = useCallback(
@@ -98,17 +114,17 @@ export function useGamification({ chapters, bookTitle = "default_book" }: UseGam
       setMaxUnlockedIndex(nextUnlocked);
       saveProgress(updatedCompleted, nextUnlocked);
     },
-    [completedChapterIds, maxUnlockedIndex, saveProgress]
+    [maxUnlockedIndex, completedChapterIds, saveProgress]
   );
 
   const resetProgress = useCallback(() => {
-    setCompletedChapterIds([]);
-    setMaxUnlockedIndex(firstPlayableIndex);
     try {
       localStorage.removeItem(storageKey);
     } catch {
       // Ignore
     }
+    setCompletedChapterIds([]);
+    setMaxUnlockedIndex(firstPlayableIndex);
   }, [storageKey, firstPlayableIndex]);
 
   return {
@@ -118,5 +134,6 @@ export function useGamification({ chapters, bookTitle = "default_book" }: UseGam
     isChapterUnlocked,
     markChapterCompleted,
     resetProgress,
+    firstPlayableIndex,
   };
 }

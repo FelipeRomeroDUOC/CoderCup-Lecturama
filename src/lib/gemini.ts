@@ -53,6 +53,19 @@ const quizResponseSchema = {
   },
 };
 
+// Schema for rapid playability classification of ambiguous sections
+const playabilityResponseSchema = {
+  type: Type.OBJECT,
+  description: "Clasificación de si el fragmento es contenido jugable del libro o relleno/paratexto",
+  properties: {
+    isPlayable: {
+      type: Type.BOOLEAN,
+      description: "true si es contenido narrativo de la obra que amerita quiz, false si es relleno/paratexto editorial",
+    },
+  },
+  required: ["isPlayable"],
+};
+
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
@@ -182,6 +195,51 @@ Texto del capítulo:
 """
 ${chapterText}
 """`;
+}
+
+/**
+ * Classifies whether an ambiguous section is playable narrative content or filler/paratext.
+ */
+export async function classifyChapterPlayability(
+  sectionTitle: string,
+  snippetText: string
+): Promise<boolean> {
+  const ai = getGeminiClient();
+  const modelName = process.env.GEMINI_MODEL || "gemini-3.6-flash";
+
+  const prompt = `Eres un editor literario y clasificador pedagógico.
+Tu tarea es determinar si el siguiente fragmento corresponde al CONTENIDO NARRATIVO/TEMÁTICO REAL de la obra (capítulo jugable con quiz) o si es simplemente PARATEXTO EDITORIAL / RELLENO (portada, dedicatoria, nota biográfica, advertencia editorial, agradecimientos, colofón, índice o anexo).
+
+Título de la sección: "${sectionTitle}"
+Texto inicial:
+"""
+${snippetText.slice(0, 1500)}
+"""
+
+Devuelve un JSON estrictamente con { "isPlayable": boolean }.`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: modelName,
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: playabilityResponseSchema,
+        temperature: 0.1,
+        thinkingConfig: {
+          thinkingBudget: 512,
+        },
+      },
+    });
+
+    const rawJson = response.text?.trim();
+    if (!rawJson) return true;
+    const parsed = JSON.parse(rawJson) as { isPlayable?: boolean };
+    return typeof parsed.isPlayable === "boolean" ? parsed.isPlayable : true;
+  } catch (error) {
+    console.error("Error en classifyChapterPlayability:", error);
+    return true; // Safe fallback
+  }
 }
 
 /**
