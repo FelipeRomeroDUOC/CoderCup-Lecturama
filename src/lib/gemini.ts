@@ -12,12 +12,12 @@ function getGeminiClient(): GoogleGenAI {
   return new GoogleGenAI({ apiKey });
 }
 
-// Model configurations
-const QUESTIONS_PRIMARY_MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash";
-const QUESTIONS_FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || "gemini-3.5-flash-lite";
+// Fixed model configurations
+const QUESTIONS_PRIMARY_MODEL = "gemini-3.5-flash";
+const QUESTIONS_FALLBACK_MODEL = "gemini-3.5-flash-lite";
 const QUESTIONS_CANDIDATE_MODELS = [QUESTIONS_PRIMARY_MODEL, QUESTIONS_FALLBACK_MODEL];
 
-const CLASSIFY_PRIMARY_MODEL = process.env.GEMINI_CLASSIFY_MODEL || "gemma-4-31b-it";
+const CLASSIFY_PRIMARY_MODEL = "gemma-4-31b-it";
 const CLASSIFY_FALLBACK_MODEL = "gemini-3.5-flash-lite";
 const CLASSIFY_CANDIDATE_MODELS = [CLASSIFY_PRIMARY_MODEL, CLASSIFY_FALLBACK_MODEL];
 
