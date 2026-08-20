@@ -91,6 +91,48 @@ function isRetryableError(err: unknown): boolean {
 }
 
 /**
+ * Resilient JSON parser that strips markdown code fences and extracts raw JSON objects/arrays.
+ */
+function extractJsonFromText<T>(rawText?: string): T {
+  if (!rawText) {
+    throw new Error("Respuesta de IA vacía.");
+  }
+
+  let cleaned = rawText.trim();
+
+  // 1. Remove markdown code blocks if wrapped in ```json ... ``` or ``` ... ```
+  if (cleaned.includes("```")) {
+    cleaned = cleaned.replace(/```(?:json)?\s*([\s\S]*?)\s*```/gi, "$1").trim();
+  }
+
+  // 2. Attempt standard JSON.parse
+  try {
+    return JSON.parse(cleaned) as T;
+  } catch {
+    // 3. Extract outermost JSON object { ... } or array [ ... ]
+    const objectMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (objectMatch) {
+      try {
+        return JSON.parse(objectMatch[0]) as T;
+      } catch {
+        // Continue
+      }
+    }
+
+    const arrayMatch = cleaned.match(/\[[\s\S]*\]/);
+    if (arrayMatch) {
+      try {
+        return JSON.parse(arrayMatch[0]) as T;
+      } catch {
+        // Continue
+      }
+    }
+
+    throw new Error(`No se pudo parsear el JSON de la respuesta: ${cleaned.slice(0, 100)}...`);
+  }
+}
+
+/**
  * Generic Fisher-Yates array shuffle.
  */
 function shuffleArray<T>(array: T[]): T[] {
@@ -259,10 +301,23 @@ Devuelve un JSON estrictamente con { "isPlayable": boolean }.`;
         config: config as any,
       });
 
-      const rawJson = response.text?.trim();
-      if (!rawJson) return true;
-      const parsed = JSON.parse(rawJson) as { isPlayable?: boolean };
-      return typeof parsed.isPlayable === "boolean" ? parsed.isPlayable : true;
+      const rawText = response.text?.trim();
+      if (!rawText) return true;
+
+      try {
+        const parsed = extractJsonFromText<{ isPlayable?: boolean }>(rawText);
+        if (typeof parsed.isPlayable === "boolean") {
+          return parsed.isPlayable;
+        }
+      } catch {
+        // Fallback to regex boolean extraction if JSON has markdown or trailing words
+        const match = rawText.match(/"isPlayable"\s*:\s*(true|false)/i);
+        if (match) {
+          return match[1].toLowerCase() === "true";
+        }
+      }
+
+      return true;
     } catch (error) {
       console.warn(`Error en classifyChapterPlayability con modelo ${modelName}:`, error);
       if (isRetryableError(error)) {
@@ -324,12 +379,12 @@ export async function generateChapterQuiz(
           config: config as any,
         });
 
-        const rawJson = response.text?.trim();
-        if (!rawJson) {
+        const rawText = response.text?.trim();
+        if (!rawText) {
           throw new Error("Gemini devolvió una respuesta vacía.");
         }
 
-        const parsed = JSON.parse(rawJson) as RawGeminiQuestion[];
+        const parsed = extractJsonFromText<RawGeminiQuestion[]>(rawText);
 
         if (!Array.isArray(parsed) || parsed.length === 0) {
           throw new Error("El formato de preguntas devuelto no es válido.");
