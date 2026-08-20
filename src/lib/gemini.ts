@@ -12,6 +12,10 @@ function getGeminiClient(): GoogleGenAI {
   return new GoogleGenAI({ apiKey });
 }
 
+const PRIMARY_MODEL = process.env.GEMINI_MODEL || "gemini-3.6-flash";
+const FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || "gemini-3.5-flash";
+const CANDIDATE_MODELS = [PRIMARY_MODEL, FALLBACK_MODEL];
+
 interface RawGeminiQuestion {
   id?: string;
   question: string;
@@ -67,6 +71,19 @@ const playabilityResponseSchema = {
 };
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function isRetryableError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  const msg = err.message.toLowerCase();
+  return (
+    msg.includes("503") ||
+    msg.includes("unavailable") ||
+    msg.includes("high demand") ||
+    msg.includes("429") ||
+    msg.includes("resource_exhausted") ||
+    msg.includes("rate limit")
+  );
+}
 
 /**
  * Generic Fisher-Yates array shuffle.
@@ -199,13 +216,13 @@ ${chapterText}
 
 /**
  * Classifies whether an ambiguous section is playable narrative content or filler/paratext.
+ * Implements model fallback from primary model to fallback model on 503/429.
  */
 export async function classifyChapterPlayability(
   sectionTitle: string,
   snippetText: string
 ): Promise<boolean> {
   const ai = getGeminiClient();
-  const modelName = process.env.GEMINI_MODEL || "gemini-3.6-flash";
 
   const prompt = `Eres un editor literario y clasificador pedagógico.
 Tu tarea es determinar si el siguiente fragmento corresponde al CONTENIDO NARRATIVO/TEMÁTICO REAL de la obra (capítulo jugable con quiz) o si es simplemente PARATEXTO EDITORIAL / RELLENO (portada, dedicatoria, nota biográfica, advertencia editorial, agradecimientos, colofón, índice o anexo).
@@ -218,33 +235,42 @@ ${snippetText.slice(0, 1500)}
 
 Devuelve un JSON estrictamente con { "isPlayable": boolean }.`;
 
-  try {
-    const response = await ai.models.generateContent({
-      model: modelName,
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: playabilityResponseSchema,
-        temperature: 0.1,
-        thinkingConfig: {
-          thinkingBudget: 512,
+  for (const modelName of CANDIDATE_MODELS) {
+    try {
+      const response = await ai.models.generateContent({
+        model: modelName,
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: playabilityResponseSchema,
+          temperature: 0.1,
+          thinkingConfig: {
+            thinkingBudget: 512,
+          },
         },
-      },
-    });
+      });
 
-    const rawJson = response.text?.trim();
-    if (!rawJson) return true;
-    const parsed = JSON.parse(rawJson) as { isPlayable?: boolean };
-    return typeof parsed.isPlayable === "boolean" ? parsed.isPlayable : true;
-  } catch (error) {
-    console.error("Error en classifyChapterPlayability:", error);
-    return true; // Safe fallback
+      const rawJson = response.text?.trim();
+      if (!rawJson) return true;
+      const parsed = JSON.parse(rawJson) as { isPlayable?: boolean };
+      return typeof parsed.isPlayable === "boolean" ? parsed.isPlayable : true;
+    } catch (error) {
+      console.warn(`Error en classifyChapterPlayability con modelo ${modelName}:`, error);
+      if (isRetryableError(error)) {
+        await delay(1000);
+        continue; // Try fallback model
+      }
+      break;
+    }
   }
+
+  // Safe fallback if all models fail
+  return true;
 }
 
 /**
  * Generates 5 multiple-choice questions for a book chapter using Gemini AI.
- * Tailored to basic, medium, or advanced difficulty levels.
+ * Implements model fallback from primary to fallback model with backoff on 503/429.
  */
 export async function generateChapterQuiz(
   chapterText: string,
@@ -252,7 +278,6 @@ export async function generateChapterQuiz(
   difficulty: QuizDifficulty = "medium"
 ): Promise<QuizQuestion[]> {
   const ai = getGeminiClient();
-  const modelName = process.env.GEMINI_MODEL || "gemini-3.6-flash";
 
   const cleanText = chapterText.trim().replace(/\s+/g, " ");
   if (!cleanText || cleanText.length < 50) {
@@ -267,72 +292,79 @@ export async function generateChapterQuiz(
 
   const prompt = buildCalibratedPrompt(truncatedText, chapterTitle, difficulty);
 
-  const maxRetries = 2;
   let lastError: unknown = null;
 
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      const response = await ai.models.generateContent({
-        model: modelName,
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: quizResponseSchema,
-          temperature: difficulty === "basic" ? 0.6 : 0.75,
-          thinkingConfig: {
-            thinkingBudget: 512,
+  for (const modelName of CANDIDATE_MODELS) {
+    const maxRetries = 1;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await ai.models.generateContent({
+          model: modelName,
+          contents: prompt,
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: quizResponseSchema,
+            temperature: difficulty === "basic" ? 0.6 : 0.75,
+            thinkingConfig: {
+              thinkingBudget: 512,
+            },
           },
-        },
-      });
+        });
 
-      const rawJson = response.text?.trim();
-      if (!rawJson) {
-        throw new Error("Gemini devolvió una respuesta vacía.");
+        const rawJson = response.text?.trim();
+        if (!rawJson) {
+          throw new Error("Gemini devolvió una respuesta vacía.");
+        }
+
+        const parsed = JSON.parse(rawJson) as RawGeminiQuestion[];
+
+        if (!Array.isArray(parsed) || parsed.length === 0) {
+          throw new Error("El formato de preguntas devuelto no es válido.");
+        }
+
+        // Match correct answer by text and shuffle options
+        const validatedQuestions: QuizQuestion[] = parsed.slice(0, 5).map((q, index) => {
+          const correctIndex = findCorrectIndex(q.options, q.correctAnswerText);
+          const { options: shuffledOptions, correctOptionIndex: shuffledIndex } =
+            shuffleOptionsAndIndex(q.options, correctIndex);
+
+          return {
+            id: q.id || `q${index + 1}`,
+            question: q.question,
+            options: shuffledOptions,
+            correctOptionIndex: shuffledIndex,
+            explanation: q.explanation || "",
+          };
+        });
+
+        // Also shuffle the order of the 5 questions
+        return shuffleArray(validatedQuestions);
+      } catch (err: unknown) {
+        lastError = err;
+        console.warn(`Intento ${attempt + 1} con modelo ${modelName} falló:`, err);
+
+        if (attempt < maxRetries && isRetryableError(err)) {
+          const backoffMs = (attempt + 1) * 1000;
+          await delay(backoffMs);
+          continue;
+        }
+
+        // If retries exhausted on this model and it's 503/429, try next fallback model
+        if (isRetryableError(err)) {
+          break;
+        }
+
+        // If non-retryable error, throw immediately
+        throw err instanceof Error
+          ? err
+          : new Error("Error desconocido al generar las preguntas con Gemini.");
       }
-
-      const parsed = JSON.parse(rawJson) as RawGeminiQuestion[];
-
-      if (!Array.isArray(parsed) || parsed.length === 0) {
-        throw new Error("El formato de preguntas devuelto no es válido.");
-      }
-
-      // Match correct answer by text and shuffle options
-      const validatedQuestions: QuizQuestion[] = parsed.slice(0, 5).map((q, index) => {
-        const correctIndex = findCorrectIndex(q.options, q.correctAnswerText);
-        const { options: shuffledOptions, correctOptionIndex: shuffledIndex } =
-          shuffleOptionsAndIndex(q.options, correctIndex);
-
-        return {
-          id: q.id || `q${index + 1}`,
-          question: q.question,
-          options: shuffledOptions,
-          correctOptionIndex: shuffledIndex,
-          explanation: q.explanation || "",
-        };
-      });
-
-      // Also shuffle the order of the 5 questions
-      return shuffleArray(validatedQuestions);
-    } catch (err: unknown) {
-      lastError = err;
-      const isRateLimit =
-        err instanceof Error &&
-        (err.message.includes("429") ||
-          err.message.includes("RESOURCE_EXHAUSTED") ||
-          err.message.includes("rate limit"));
-
-      if (attempt < maxRetries && isRateLimit) {
-        const backoffMs = (attempt + 1) * 1000; // 1s, then 2s
-        await delay(backoffMs);
-        continue;
-      }
-
-      // If not rate limit or reached max retries, throw
-      break;
     }
   }
 
   throw lastError instanceof Error
     ? lastError
-    : new Error("Error desconocido al generar las preguntas con Gemini.");
+    : new Error(
+        "Los modelos de IA de Google están experimentando alta demanda temporal. Por favor reintenta en unos instantes."
+      );
 }
