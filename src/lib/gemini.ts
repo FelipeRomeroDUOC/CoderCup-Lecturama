@@ -21,8 +21,10 @@ const CLASSIFY_PRIMARY_MODEL = process.env.GEMINI_CLASSIFY_MODEL || "gemma-4-31b
 const CLASSIFY_FALLBACK_MODEL = "gemini-3.5-flash-lite";
 const CLASSIFY_CANDIDATE_MODELS = [CLASSIFY_PRIMARY_MODEL, CLASSIFY_FALLBACK_MODEL];
 
-// Maximum allowed time per model call before triggering fast fallback (8 seconds)
-const MODEL_TIMEOUT_MS = 8000;
+// Calibrated timeouts per task
+const QUIZ_PRIMARY_TIMEOUT_MS = 22000; // 22 seconds for deep pedagogical reasoning with thinking mode
+const QUIZ_FALLBACK_TIMEOUT_MS = 10000; // 10 seconds for ultra-fast fallback model
+const CLASSIFY_TIMEOUT_MS = 6000; // 6 seconds for binary classification
 
 interface RawGeminiQuestion {
   id?: string;
@@ -306,8 +308,8 @@ Devuelve un JSON estrictamente con { "isPlayable": boolean }.`;
           contents: prompt,
           config: config as any,
         }),
-        MODEL_TIMEOUT_MS,
-        `Timeout de ${MODEL_TIMEOUT_MS}ms en classify con modelo ${modelName}`
+        CLASSIFY_TIMEOUT_MS,
+        `Timeout de ${CLASSIFY_TIMEOUT_MS}ms en classify con modelo ${modelName}`
       );
 
       const rawText = response.text?.trim();
@@ -343,7 +345,7 @@ Devuelve un JSON estrictamente con { "isPlayable": boolean }.`;
 
 /**
  * Generates 5 multiple-choice questions for a book chapter using Gemini AI.
- * Primary model: gemini-3.5-flash, Fast Fallback model: gemini-3.5-flash-lite.
+ * Primary model: gemini-3.5-flash (22s), Fast Fallback model: gemini-3.5-flash-lite (10s).
  */
 export async function generateChapterQuiz(
   chapterText: string,
@@ -380,14 +382,19 @@ export async function generateChapterQuiz(
         config.thinkingConfig = { thinkingBudget: 512 };
       }
 
+      const timeoutMs =
+        modelName === QUESTIONS_PRIMARY_MODEL
+          ? QUIZ_PRIMARY_TIMEOUT_MS
+          : QUIZ_FALLBACK_TIMEOUT_MS;
+
       const response = await withTimeout(
         ai.models.generateContent({
           model: modelName,
           contents: prompt,
           config: config as any,
         }),
-        MODEL_TIMEOUT_MS,
-        `Timeout de ${MODEL_TIMEOUT_MS}ms en generateQuiz con modelo ${modelName}`
+        timeoutMs,
+        `Timeout de ${timeoutMs}ms en generateQuiz con modelo ${modelName}`
       );
 
       const rawText = response.text?.trim();
