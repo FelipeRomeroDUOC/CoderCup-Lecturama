@@ -242,17 +242,21 @@ Devuelve un JSON estrictamente con { "isPlayable": boolean }.`;
 
   for (const modelName of CLASSIFY_CANDIDATE_MODELS) {
     try {
+      const supportsThinking = modelName.toLowerCase().startsWith("gemini");
+      const config: Record<string, unknown> = {
+        responseMimeType: "application/json",
+        responseSchema: playabilityResponseSchema,
+        temperature: 0.1,
+      };
+
+      if (supportsThinking) {
+        config.thinkingConfig = { thinkingBudget: 512 };
+      }
+
       const response = await ai.models.generateContent({
         model: modelName,
         contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: playabilityResponseSchema,
-          temperature: 0.1,
-          thinkingConfig: {
-            thinkingBudget: 512,
-          },
-        },
+        config: config as any,
       });
 
       const rawJson = response.text?.trim();
@@ -303,17 +307,21 @@ export async function generateChapterQuiz(
     const maxRetries = 1;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
+        const supportsThinking = modelName.toLowerCase().startsWith("gemini");
+        const config: Record<string, unknown> = {
+          responseMimeType: "application/json",
+          responseSchema: quizResponseSchema,
+          temperature: difficulty === "basic" ? 0.6 : 0.75,
+        };
+
+        if (supportsThinking) {
+          config.thinkingConfig = { thinkingBudget: 512 };
+        }
+
         const response = await ai.models.generateContent({
           model: modelName,
           contents: prompt,
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: quizResponseSchema,
-            temperature: difficulty === "basic" ? 0.6 : 0.75,
-            thinkingConfig: {
-              thinkingBudget: 512,
-            },
-          },
+          config: config as any,
         });
 
         const rawJson = response.text?.trim();
