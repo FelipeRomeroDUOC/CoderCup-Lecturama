@@ -132,11 +132,13 @@ export function useGamification({
 
   const markChapterCompleted = useCallback(
     (chapterId: string, currentIdx: number) => {
-      // Advance to next index
+      // Idempotency guard: do nothing if already marked as completed
+      if (completedChapterIds.includes(chapterId)) {
+        return;
+      }
+
       const nextUnlocked = Math.max(maxUnlockedIndex, currentIdx + 1);
-      const updatedCompleted = completedChapterIds.includes(chapterId)
-        ? completedChapterIds
-        : [...completedChapterIds, chapterId];
+      const updatedCompleted = [...completedChapterIds, chapterId];
 
       setCompletedChapterIds(updatedCompleted);
       setMaxUnlockedIndex(nextUnlocked);

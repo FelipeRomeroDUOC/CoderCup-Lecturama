@@ -251,12 +251,21 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
 
   // Auto-unlock non-playable filler chapters
   useEffect(() => {
-    if (nonPlayableChapterIds.length > 0 && currentChapterIndex >= 0) {
-      if (activeChapter && nonPlayableChapterIds.includes(activeChapter.id)) {
-        markChapterCompleted(activeChapter.id, currentChapterIndex);
-      }
+    if (
+      activeChapter &&
+      nonPlayableChapterIds.includes(activeChapter.id) &&
+      !isChapterCompleted(activeChapter.id) &&
+      currentChapterIndex >= 0
+    ) {
+      markChapterCompleted(activeChapter.id, currentChapterIndex);
     }
-  }, [nonPlayableChapterIds, activeChapter, currentChapterIndex, markChapterCompleted]);
+  }, [
+    nonPlayableChapterIds,
+    activeChapter,
+    currentChapterIndex,
+    isChapterCompleted,
+    markChapterCompleted,
+  ]);
 
   // Sync active chapter when page changes
   useEffect(() => {
