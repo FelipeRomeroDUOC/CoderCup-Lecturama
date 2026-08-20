@@ -7,6 +7,12 @@ import { useChapters } from "@/hooks/useChapters";
 import { useGamification } from "@/hooks/useGamification";
 import { extractChapterText } from "@/lib/pdfTextExtractor";
 import { classifySectionLocally } from "@/lib/chapterClassifier";
+import { getClientUserId } from "@/lib/clientSession";
+import {
+  getQuizSession,
+  clearAllBookSessions,
+  ActiveQuizSession,
+} from "@/lib/quizSessionStore";
 import { Chapter } from "@/types/pdf";
 import { QuizQuestion, QuizDifficulty } from "@/types/quiz";
 import ChapterSidebar from "@/components/ChapterSidebar";
@@ -43,6 +49,7 @@ interface PdfReaderProps {
 }
 
 export default function PdfReader({ file, onClose }: PdfReaderProps) {
+  const [userId, setUserId] = useState<string>("default_user");
   const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [numPages, setNumPages] = useState<number>(1);
@@ -56,6 +63,17 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
 
   // Dynamic set of chapter IDs detected as non-playable filler
   const [nonPlayableChapterIds, setNonPlayableChapterIds] = useState<string[]>([]);
+
+  // Quiz state
+  const [isQuizOpen, setIsQuizOpen] = useState<boolean>(false);
+  const [isLoadingQuiz, setIsLoadingQuiz] = useState<boolean>(false);
+  const [quizError, setQuizError] = useState<string | null>(null);
+  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
+
+  // Initialize client user ID on mount
+  useEffect(() => {
+    setUserId(getClientUserId());
+  }, []);
 
   // Load saved difficulty from localStorage on mount
   useEffect(() => {
@@ -77,12 +95,6 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
       // Ignore
     }
   };
-
-  // Quiz state
-  const [isQuizOpen, setIsQuizOpen] = useState<boolean>(false);
-  const [isLoadingQuiz, setIsLoadingQuiz] = useState<boolean>(false);
-  const [quizError, setQuizError] = useState<string | null>(null);
-  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
 
   // Memoize stable file reference
   const stableFile = useMemo(() => file, [file]);
@@ -152,6 +164,23 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
   const startPage = activeChapter ? activeChapter.startPage : 1;
   const endPage = activeChapter ? activeChapter.endPage : numPages;
 
+  // Check if active chapter has an in-progress quiz session
+  const activeQuizSession = useMemo<ActiveQuizSession | null>(() => {
+    if (!activeChapter) return null;
+    return getQuizSession(userId, file.name, activeChapter.id);
+  }, [userId, file.name, activeChapter, isQuizOpen]);
+
+  const hasActiveQuizSession = Boolean(activeQuizSession);
+
+  const quizSessionInfo = useMemo(() => {
+    if (!activeQuizSession) return null;
+    return {
+      currentQuestion: (activeQuizSession.currentQuestionIndex || 0) + 1,
+      totalQuestions: activeQuizSession.questions.length,
+      lives: activeQuizSession.lives,
+    };
+  }, [activeQuizSession]);
+
   // Hybrid filler detection: automatically checks active chapter if not already classified
   useEffect(() => {
     if (!pdfDocument || !activeChapter || currentChapterIndex < 0) return;
@@ -218,19 +247,42 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
     return () => {
       isMounted = false;
     };
-  }, [pdfDocument, activeChapter, currentChapterIndex, flattenedChapters.length, nonPlayableChapterIds]);
+  }, [pdfDocument, activeChapter, currentChapterIndex, nonPlayableChapterIds, flattenedChapters]);
 
+  // Auto-unlock non-playable filler chapters
+  useEffect(() => {
+    if (nonPlayableChapterIds.length > 0 && currentChapterIndex >= 0) {
+      if (activeChapter && nonPlayableChapterIds.includes(activeChapter.id)) {
+        markChapterCompleted(activeChapter.id, currentChapterIndex);
+      }
+    }
+  }, [nonPlayableChapterIds, activeChapter, currentChapterIndex, markChapterCompleted]);
+
+  // Sync active chapter when page changes
+  useEffect(() => {
+    if (flattenedChapters.length === 0) return;
+
+    const matchedChapter = flattenedChapters.find(
+      (c) => currentPage >= c.startPage && currentPage <= c.endPage
+    );
+
+    if (matchedChapter && matchedChapter.id !== activeChapterId) {
+      if (isChapterUnlocked(matchedChapter.id)) {
+        setActiveChapterId(matchedChapter.id);
+      }
+    }
+  }, [currentPage, flattenedChapters, activeChapterId, isChapterUnlocked]);
+
+  // Chapter Navigation Handlers
   const handleSelectChapter = useCallback(
     (chapter: Chapter) => {
-      const idx = flattenedChapters.findIndex((c) => c.id === chapter.id);
-      if (!isChapterUnlocked(chapter.id, idx)) {
-        return;
+      if (isChapterUnlocked(chapter.id)) {
+        setActiveChapterId(chapter.id);
+        setCurrentPage(chapter.startPage);
+        setScrollToPage(chapter.startPage);
       }
-      setActiveChapterId(chapter.id);
-      setCurrentPage(chapter.startPage);
-      setScrollToPage(chapter.startPage);
     },
-    [flattenedChapters, isChapterUnlocked]
+    [isChapterUnlocked]
   );
 
   const handleNextChapter = useCallback(() => {
@@ -240,33 +292,34 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
     ) {
       const nextChapter = flattenedChapters[currentChapterIndex + 1];
       if (isChapterUnlocked(nextChapter.id, currentChapterIndex + 1)) {
-        handleSelectChapter(nextChapter);
+        setActiveChapterId(nextChapter.id);
+        setCurrentPage(nextChapter.startPage);
+        setScrollToPage(nextChapter.startPage);
       }
     }
-  }, [currentChapterIndex, flattenedChapters, handleSelectChapter, isChapterUnlocked]);
+  }, [currentChapterIndex, flattenedChapters, isChapterUnlocked]);
 
   const handlePrevChapter = useCallback(() => {
     if (currentChapterIndex > 0) {
       const prevChapter = flattenedChapters[currentChapterIndex - 1];
-      handleSelectChapter(prevChapter);
+      setActiveChapterId(prevChapter.id);
+      setCurrentPage(prevChapter.startPage);
+      setScrollToPage(prevChapter.startPage);
     }
-  }, [currentChapterIndex, flattenedChapters, handleSelectChapter]);
+  }, [currentChapterIndex, flattenedChapters]);
 
-  // Jump to specific page with locked chapter guard
   const handlePageChange = useCallback(
     (targetPage: number) => {
       if (targetPage < 1 || targetPage > numPages) return;
 
-      const targetChapterIdx = flattenedChapters.findIndex(
+      const targetChapter = flattenedChapters.find(
         (c) => targetPage >= c.startPage && targetPage <= c.endPage
       );
 
-      if (targetChapterIdx >= 0) {
-        const targetChapter = flattenedChapters[targetChapterIdx];
-        if (!isChapterUnlocked(targetChapter.id, targetChapterIdx)) {
+      if (targetChapter) {
+        if (!isChapterUnlocked(targetChapter.id)) {
           return;
         }
-
         if (targetChapter.id !== activeChapterId) {
           setActiveChapterId(targetChapter.id);
         }
@@ -282,15 +335,27 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
     setCurrentPage((prev) => (prev !== pageNum ? pageNum : prev));
   }, []);
 
-  // Launch quiz on demand by extracting chapter text and fetching questions
+  // Launch quiz on demand or resume saved session
   const handleStartQuiz = useCallback(async () => {
     if (!pdfDocument || !activeChapter) return;
+
+    // 1. If an active paused session exists for this chapter, restore it immediately
+    const existingSession = getQuizSession(userId, file.name, activeChapter.id);
+    if (
+      existingSession &&
+      Array.isArray(existingSession.questions) &&
+      existingSession.questions.length > 0
+    ) {
+      setQuizQuestions(existingSession.questions);
+      setIsQuizOpen(true);
+      return;
+    }
 
     setIsLoadingQuiz(true);
     setQuizError(null);
 
     try {
-      // 1. Extract plain text from the chapter's pages
+      // 2. Extract plain text from the chapter's pages
       const chapterText = await extractChapterText(
         pdfDocument,
         activeChapter.startPage,
@@ -303,7 +368,7 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
         );
       }
 
-      // 2. Request questions from the backend with selected difficulty
+      // 3. Request questions from the backend with selected difficulty
       const response = await fetch(
         `/api/chapters/${encodeURIComponent(activeChapter.id)}/questions`,
         {
@@ -336,7 +401,7 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
     } finally {
       setIsLoadingQuiz(false);
     }
-  }, [pdfDocument, activeChapter, difficulty]);
+  }, [pdfDocument, activeChapter, userId, file.name, difficulty]);
 
   const handleQuizSuccess = useCallback(() => {
     if (activeChapter) {
@@ -369,6 +434,7 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
     try {
       await fetch("/api/dev/reset", { method: "POST" });
       resetProgress();
+      clearAllBookSessions(userId, file.name);
       setNonPlayableChapterIds([]);
       setQuizQuestions([]);
       setIsQuizOpen(false);
@@ -388,7 +454,7 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
     } catch (err) {
       console.error("Error al reiniciar progreso dev:", err);
     }
-  }, [resetProgress, pdfDocument, numPages, extractChapters, flattenedChapters]);
+  }, [resetProgress, userId, file.name, pdfDocument, numPages, extractChapters, flattenedChapters]);
 
   const zoomIn = () => setScale((prev) => Math.min(prev + 0.15, 2.0));
   const zoomOut = () => setScale((prev) => Math.max(prev - 0.15, 0.6));
@@ -397,79 +463,68 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
   const isCurrentCompleted = activeChapter
     ? isChapterCompleted(activeChapter.id)
     : false;
-
-  const isNextUnlocked =
-    currentChapterIndex < flattenedChapters.length - 1
-      ? isChapterUnlocked(
-          flattenedChapters[currentChapterIndex + 1].id,
-          currentChapterIndex + 1
-        )
-      : false;
-
   const isCurrentNonPlayable = activeChapter
     ? nonPlayableChapterIds.includes(activeChapter.id)
     : false;
+  const isNextUnlocked =
+    currentChapterIndex >= 0 &&
+    currentChapterIndex < flattenedChapters.length - 1
+      ? isChapterUnlocked(flattenedChapters[currentChapterIndex + 1].id)
+      : false;
 
   return (
-    <div className="flex flex-col h-screen w-full bg-zinc-50 dark:bg-zinc-950 overflow-hidden">
-      {/* Top Header */}
-      <header className="flex items-center justify-between px-4 py-2.5 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 z-20">
-        <div className="flex items-center gap-3">
+    <div className="flex flex-col h-screen bg-zinc-950 text-zinc-100 overflow-hidden font-sans">
+      {/* Top Header Bar */}
+      <header className="h-14 border-b border-zinc-800 bg-zinc-900/90 backdrop-blur px-4 flex items-center justify-between shrink-0 z-20">
+        <div className="flex items-center gap-3 min-w-0">
           <button
             type="button"
             onClick={() => setIsSidebarOpen((prev) => !prev)}
-            className="px-3 py-1.5 text-sm font-medium rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition-colors flex items-center gap-1.5 cursor-pointer"
             title="Alternar panel de capítulos"
           >
-            ☰ {isSidebarOpen ? "Ocultar Capítulos" : "Ver Capítulos"}
+            <span>📑</span>
+            <span>{isSidebarOpen ? "Ocultar Capítulos" : "Ver Capítulos"}</span>
           </button>
-
-          <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 max-w-xs md:max-w-md truncate">
+          <span className="text-sm font-semibold truncate text-zinc-200 max-w-xs md:max-w-md">
             {file.name}
           </span>
         </div>
 
-        {/* Difficulty Selector, Zoom Controls, Dev Tool & Close */}
+        {/* Center Controls: Difficulty Selector */}
         <div className="flex items-center gap-2">
-          {/* Difficulty Level Selector */}
-          <div className="flex items-center gap-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-lg px-2 py-1 border border-zinc-200 dark:border-zinc-700 text-xs">
-            <span className="font-semibold text-zinc-500 dark:text-zinc-400 hidden md:inline">
-              Nivel:
-            </span>
-            <select
-              value={difficulty}
-              onChange={(e) => handleDifficultyChange(e.target.value as QuizDifficulty)}
-              className="bg-transparent font-medium text-zinc-800 dark:text-zinc-200 focus:outline-none cursor-pointer"
-              title="Selecciona el nivel de dificultad adaptado para el lector"
-            >
-              <option value="basic" className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100">
-                🧒 Básica (8-12 años)
-              </option>
-              <option value="medium" className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100">
-                🧑‍🎓 Media (13-17 años)
-              </option>
-              <option value="advanced" className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100">
-                🎓 Avanzada (Adultos)
-              </option>
-            </select>
-          </div>
+          <label className="text-xs text-zinc-400 font-medium hidden sm:inline">
+            Nivel:
+          </label>
+          <select
+            value={difficulty}
+            onChange={(e) => handleDifficultyChange(e.target.value as QuizDifficulty)}
+            className="text-xs bg-zinc-800 text-zinc-200 border border-zinc-700 rounded-lg px-2.5 py-1.5 font-medium hover:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-amber-500 cursor-pointer"
+            title="Ajusta el nivel y vocabulario de las preguntas"
+          >
+            <option value="basic">🧒 Básica (8-12 años)</option>
+            <option value="medium">🧑‍🎓 Media (13-17 años)</option>
+            <option value="advanced">🎓 Avanzada (Adultos)</option>
+          </select>
+        </div>
 
-          {/* Developer Reset Tool Button */}
+        {/* Right Controls: Developer Reset Tool & Zoom */}
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={handleDevReset}
-            className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-800/60 hover:bg-amber-200 dark:hover:bg-amber-900 transition-all flex items-center gap-1.5"
-            title="Herramienta Dev: Reiniciar libro, bloquear niveles y vaciar preguntas"
+            className="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 transition-colors flex items-center gap-1 cursor-pointer"
+            title="[DEV] Reiniciar todos los niveles, bloquearlos nuevamente y vaciar caché del servidor"
           >
             <span>🛠️</span>
             <span>Reset [DEV]</span>
           </button>
 
-          <div className="hidden sm:flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 rounded-lg p-0.5 border border-zinc-200 dark:border-zinc-700 text-xs">
+          <div className="hidden sm:flex items-center gap-1 bg-zinc-800 rounded-lg p-1 border border-zinc-700 text-xs">
             <button
               type="button"
               onClick={zoomOut}
-              className="px-2 py-1 hover:bg-white dark:hover:bg-zinc-700 rounded text-zinc-700 dark:text-zinc-300"
+              className="px-2 py-0.5 hover:bg-zinc-700 rounded text-zinc-300 cursor-pointer"
               title="Reducir zoom"
             >
               -
@@ -477,7 +532,7 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
             <button
               type="button"
               onClick={zoomReset}
-              className="px-2 py-1 hover:bg-white dark:hover:bg-zinc-700 rounded text-zinc-700 dark:text-zinc-300 font-medium"
+              className="px-2 py-0.5 hover:bg-zinc-700 rounded text-zinc-300 font-mono cursor-pointer"
               title="Restablecer zoom"
             >
               {Math.round(scale * 100)}%
@@ -485,7 +540,7 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
             <button
               type="button"
               onClick={zoomIn}
-              className="px-2 py-1 hover:bg-white dark:hover:bg-zinc-700 rounded text-zinc-700 dark:text-zinc-300"
+              className="px-2 py-0.5 hover:bg-zinc-700 rounded text-zinc-300 cursor-pointer"
               title="Aumentar zoom"
             >
               +
@@ -495,7 +550,7 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
           <button
             type="button"
             onClick={onClose}
-            className="px-3 py-1.5 text-sm font-medium rounded-lg text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 transition-colors cursor-pointer"
           >
             Cambiar libro
           </button>
@@ -525,7 +580,7 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
               <button
                 type="button"
                 onClick={() => setQuizError(null)}
-                className="text-xs underline hover:text-rose-900 ml-4"
+                className="text-xs underline hover:text-rose-900 ml-4 cursor-pointer"
               >
                 Cerrar
               </button>
@@ -555,6 +610,8 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
                   isCurrentChapterCompleted={isCurrentCompleted}
                   isNextChapterUnlocked={isNextUnlocked}
                   isNonPlayable={isCurrentNonPlayable}
+                  hasActiveQuizSession={hasActiveQuizSession}
+                  quizSessionInfo={quizSessionInfo}
                   onNextChapter={handleNextChapter}
                   onPrevChapter={handlePrevChapter}
                   onStartQuiz={handleStartQuiz}
@@ -596,10 +653,12 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
       {/* Interactive Quiz Modal */}
       {activeChapter && (
         <QuizModal
-          key={`${activeChapter.id}-${quizQuestions.length}`}
           isOpen={isQuizOpen}
           onClose={() => setIsQuizOpen(false)}
+          chapterId={activeChapter.id}
           chapterTitle={activeChapter.title}
+          bookTitle={file.name}
+          userId={userId}
           questions={quizQuestions}
           onCompleteSuccess={handleQuizSuccess}
           onAdvanceToNextChapter={handleAdvanceToNextChapter}

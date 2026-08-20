@@ -2,11 +2,19 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { QuizQuestion } from "@/types/quiz";
+import {
+  getQuizSession,
+  saveQuizSession,
+  clearQuizSession,
+} from "@/lib/quizSessionStore";
 
 interface QuizModalProps {
   isOpen: boolean;
   onClose: () => void;
+  chapterId: string;
   chapterTitle: string;
+  bookTitle?: string;
+  userId?: string;
   questions: QuizQuestion[];
   onCompleteSuccess: () => void;
   onAdvanceToNextChapter?: () => void;
@@ -15,7 +23,10 @@ interface QuizModalProps {
 export default function QuizModal({
   isOpen,
   onClose,
+  chapterId,
   chapterTitle,
+  bookTitle = "default_book",
+  userId = "default_user",
   questions,
   onCompleteSuccess,
   onAdvanceToNextChapter,
@@ -28,8 +39,7 @@ export default function QuizModal({
   const [isGameOver, setIsGameOver] = useState<boolean>(false);
   const [correctAnswersCount, setCorrectAnswersCount] = useState<number>(0);
 
-  const lastChapterTitleRef = useRef<string>(chapterTitle);
-  const lastQuestionsRef = useRef<QuizQuestion[]>(questions);
+  const lastChapterIdRef = useRef<string>(chapterId);
 
   const resetQuiz = useCallback(() => {
     setCurrentQuestionIndex(0);
@@ -39,20 +49,75 @@ export default function QuizModal({
     setIsVictory(false);
     setIsGameOver(false);
     setCorrectAnswersCount(0);
-  }, []);
+    clearQuizSession(userId, bookTitle, chapterId);
+  }, [userId, bookTitle, chapterId]);
 
-  // Only reset quiz state if the chapter or question set actually changed
+  // Load saved session on open or initialize
   useEffect(() => {
-    const isNewChapter =
-      lastChapterTitleRef.current !== chapterTitle ||
-      lastQuestionsRef.current !== questions;
+    if (!isOpen) return;
+
+    const isNewChapter = lastChapterIdRef.current !== chapterId;
+    lastChapterIdRef.current = chapterId;
 
     if (isNewChapter) {
-      lastChapterTitleRef.current = chapterTitle;
-      lastQuestionsRef.current = questions;
-      resetQuiz();
+      // Check if the new chapter has a saved session
+      const savedSession = getQuizSession(userId, bookTitle, chapterId);
+      if (savedSession) {
+        setCurrentQuestionIndex(savedSession.currentQuestionIndex || 0);
+        setSelectedOptionIndex(savedSession.selectedOptionIndex ?? null);
+        setIsAnswerSubmitted(Boolean(savedSession.isAnswerSubmitted));
+        setLives(typeof savedSession.lives === "number" ? savedSession.lives : 3);
+        setCorrectAnswersCount(savedSession.correctAnswersCount || 0);
+        setIsVictory(false);
+        setIsGameOver(false);
+      } else {
+        resetQuiz();
+      }
+    } else {
+      // Reopening same chapter: load saved session if exists
+      const savedSession = getQuizSession(userId, bookTitle, chapterId);
+      if (savedSession) {
+        setCurrentQuestionIndex(savedSession.currentQuestionIndex || 0);
+        setSelectedOptionIndex(savedSession.selectedOptionIndex ?? null);
+        setIsAnswerSubmitted(Boolean(savedSession.isAnswerSubmitted));
+        setLives(typeof savedSession.lives === "number" ? savedSession.lives : 3);
+        setCorrectAnswersCount(savedSession.correctAnswersCount || 0);
+        setIsVictory(false);
+        setIsGameOver(false);
+      }
     }
-  }, [chapterTitle, questions, resetQuiz]);
+  }, [isOpen, chapterId, userId, bookTitle, resetQuiz]);
+
+  // Auto-save quiz session state to localStorage on changes
+  useEffect(() => {
+    if (!isOpen || isVictory || isGameOver || questions.length === 0) return;
+
+    saveQuizSession(userId, bookTitle, {
+      chapterId,
+      chapterTitle,
+      questions,
+      currentQuestionIndex,
+      lives,
+      correctAnswersCount,
+      selectedOptionIndex,
+      isAnswerSubmitted,
+      timestamp: Date.now(),
+    });
+  }, [
+    isOpen,
+    isVictory,
+    isGameOver,
+    userId,
+    bookTitle,
+    chapterId,
+    chapterTitle,
+    questions,
+    currentQuestionIndex,
+    lives,
+    correctAnswersCount,
+    selectedOptionIndex,
+    isAnswerSubmitted,
+  ]);
 
   if (!isOpen || questions.length === 0) return null;
 
@@ -77,6 +142,7 @@ export default function QuizModal({
       setLives(newLives);
       if (newLives <= 0) {
         setIsGameOver(true);
+        clearQuizSession(userId, bookTitle, chapterId);
       }
     }
   };
@@ -89,11 +155,17 @@ export default function QuizModal({
     } else {
       // Completed all questions with at least 1 life
       setIsVictory(true);
+      clearQuizSession(userId, bookTitle, chapterId);
       onCompleteSuccess();
     }
   };
 
+  const handleRetryQuiz = () => {
+    resetQuiz();
+  };
+
   const handleVictoryContinue = () => {
+    clearQuizSession(userId, bookTitle, chapterId);
     onClose();
     if (onAdvanceToNextChapter) {
       onAdvanceToNextChapter();
@@ -167,7 +239,7 @@ export default function QuizModal({
                 <button
                   type="button"
                   onClick={handleVictoryContinue}
-                  className="w-full sm:w-auto px-6 py-3 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-500 shadow-md transition-all flex items-center justify-center gap-2"
+                  className="w-full sm:w-auto px-6 py-3 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-500 shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <span>Continuar Lectura ➔</span>
                 </button>
@@ -190,8 +262,8 @@ export default function QuizModal({
               <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
                 <button
                   type="button"
-                  onClick={resetQuiz}
-                  className="w-full sm:w-auto px-6 py-3 rounded-xl bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-semibold hover:bg-zinc-800 dark:hover:bg-zinc-200 shadow-md transition-all flex items-center justify-center gap-2"
+                  onClick={handleRetryQuiz}
+                  className="w-full sm:w-auto px-6 py-3 rounded-xl bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-semibold hover:bg-zinc-800 dark:hover:bg-zinc-200 shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <span>🔄</span>
                   <span>Reintentar Quiz (3 Vidas)</span>
@@ -199,7 +271,7 @@ export default function QuizModal({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="w-full sm:w-auto px-5 py-3 rounded-xl border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-medium transition-all"
+                  className="w-full sm:w-auto px-5 py-3 rounded-xl border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-medium transition-all cursor-pointer"
                 >
                   Volver al Lector
                 </button>
@@ -253,7 +325,7 @@ export default function QuizModal({
                       type="button"
                       onClick={() => handleSelectOption(idx)}
                       disabled={isAnswerSubmitted}
-                      className={`w-full text-left p-3.5 rounded-2xl border-2 transition-all flex items-center justify-between gap-3 text-sm ${optionStyles}`}
+                      className={`w-full text-left p-3.5 rounded-2xl border-2 transition-all flex items-center justify-between gap-3 text-sm cursor-pointer ${optionStyles}`}
                     >
                       <div className="flex items-center gap-3">
                         <span
@@ -307,7 +379,7 @@ export default function QuizModal({
             <button
               type="button"
               onClick={onClose}
-              className="text-xs font-medium text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+              className="text-xs font-medium text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 cursor-pointer"
             >
               Pausar y salir
             </button>
@@ -316,7 +388,7 @@ export default function QuizModal({
               <button
                 type="button"
                 onClick={handleNextQuestion}
-                className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-sm shadow-md transition-all animate-in fade-in duration-150"
+                className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-sm shadow-md transition-all animate-in fade-in duration-150 cursor-pointer"
               >
                 {currentQuestionIndex + 1 === totalQuestions
                   ? "Ver Resultados ➔"

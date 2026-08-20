@@ -1,101 +1,15 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback, useMemo, memo } from "react";
+import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import { Page } from "react-pdf";
-import type { PDFDocumentProxy } from "pdfjs-dist";
 import { isPreliminarySection } from "@/lib/chapterClassifier";
-
-interface PdfPageItemProps {
-  pdf: PDFDocumentProxy;
-  pageNum: number;
-  width: number;
-  onMountElement: (pageNum: number, el: HTMLDivElement | null) => void;
-}
-
-const PdfPageItem = memo(function PdfPageItem({
-  pdf,
-  pageNum,
-  width,
-  onMountElement,
-}: PdfPageItemProps) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  // First page is loaded immediately, subsequent pages are loaded when near viewport
-  const [shouldRender, setShouldRender] = useState<boolean>(pageNum <= 2);
-
-  const handleRef = useCallback(
-    (el: HTMLDivElement | null) => {
-      containerRef.current = el;
-      onMountElement(pageNum, el);
-    },
-    [pageNum, onMountElement]
-  );
-
-  // Lazy loading observer: loads page when within 600px of viewport
-  useEffect(() => {
-    if (shouldRender) return;
-
-    const el = containerRef.current;
-    if (!el) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setShouldRender(true);
-          observer.disconnect();
-        }
-      },
-      {
-        root: null,
-        rootMargin: "600px 0px 600px 0px",
-        threshold: 0,
-      }
-    );
-
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [shouldRender]);
-
-  // Approximate height based on standard A4/US Letter aspect ratio (1:1.414)
-  const estimatedHeight = Math.round(width * 1.414);
-
-  return (
-    <div
-      data-page-number={pageNum}
-      ref={handleRef}
-      className="flex flex-col items-center w-full min-h-[400px]"
-    >
-      <div
-        className="shadow-lg rounded-lg overflow-hidden bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center transition-all duration-150"
-        style={{ width: `${width}px`, minHeight: shouldRender ? undefined : `${estimatedHeight}px` }}
-      >
-        {shouldRender ? (
-          <Page
-            pdf={pdf}
-            pageNumber={pageNum}
-            width={width}
-            renderTextLayer={true}
-            renderAnnotationLayer={true}
-            className="transition-all duration-150"
-          />
-        ) : (
-          <div className="flex flex-col items-center justify-center p-12 text-zinc-400 space-y-2">
-            <div className="w-6 h-6 border-2 border-zinc-300 border-t-zinc-700 dark:border-zinc-700 dark:border-t-zinc-300 rounded-full animate-spin" />
-            <span className="text-xs font-medium">Cargando página {pageNum}...</span>
-          </div>
-        )}
-      </div>
-      <span className="mt-2 text-xs font-medium text-zinc-400">
-        Página {pageNum}
-      </span>
-    </div>
-  );
-});
+import type { PDFDocumentProxy } from "pdfjs-dist";
 
 interface PdfViewerProps {
   pdf: PDFDocumentProxy;
   startPage: number;
   endPage: number;
-  onVisiblePageChange: (pageNumber: number) => void;
+  onVisiblePageChange: (pageNum: number) => void;
   scale?: number;
   activeChapterTitle?: string;
   hasNextChapter?: boolean;
@@ -103,6 +17,8 @@ interface PdfViewerProps {
   isCurrentChapterCompleted?: boolean;
   isNextChapterUnlocked?: boolean;
   isNonPlayable?: boolean;
+  hasActiveQuizSession?: boolean;
+  quizSessionInfo?: { currentQuestion: number; totalQuestions: number; lives: number } | null;
   onNextChapter?: () => void;
   onPrevChapter?: () => void;
   onStartQuiz?: () => void;
@@ -121,6 +37,8 @@ export default function PdfViewer({
   isCurrentChapterCompleted = false,
   isNextChapterUnlocked = true,
   isNonPlayable = false,
+  hasActiveQuizSession = false,
+  quizSessionInfo,
   onNextChapter,
   onPrevChapter,
   onStartQuiz,
@@ -161,116 +79,118 @@ export default function PdfViewer({
     return () => window.removeEventListener("resize", updateWidth);
   }, [updateWidth]);
 
-  // Memoize page range for current chapter
-  const pages = useMemo(() => {
-    const count = Math.max(1, endPage - startPage + 1);
-    return Array.from({ length: count }, (_, i) => startPage + i);
-  }, [startPage, endPage]);
-
-  // Smooth scroll to a target page
+  // Handle explicit scroll commands
   useEffect(() => {
-    const targetPage = scrollToPage || startPage;
-    const pageEl = pageRefs.current.get(targetPage);
+    if (scrollToPage && pageRefs.current.has(scrollToPage)) {
+      const targetEl = pageRefs.current.get(scrollToPage);
+      if (targetEl) {
+        isProgrammaticScroll.current = true;
+        targetEl.scrollIntoView({ behavior: "smooth", block: "start" });
 
-    if (pageEl) {
-      isProgrammaticScroll.current = true;
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
+        if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+        scrollTimeoutRef.current = setTimeout(() => {
+          isProgrammaticScroll.current = false;
+        }, 800);
       }
-
-      pageEl.scrollIntoView({ behavior: "smooth", block: "start" });
-
-      scrollTimeoutRef.current = setTimeout(() => {
-        isProgrammaticScroll.current = false;
-      }, 750);
     }
+  }, [scrollToPage]);
 
-    return () => {
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-    };
-  }, [startPage, scrollToPage]);
-
-  // Observe active visible page
+  // Track the most visible page in the viewport using IntersectionObserver
   useEffect(() => {
-    let debounceTimer: NodeJS.Timeout | null = null;
-
     const observer = new IntersectionObserver(
       (entries) => {
         if (isProgrammaticScroll.current) return;
 
-        const intersectingEntries = entries.filter((e) => e.isIntersecting);
-        if (intersectingEntries.length === 0) return;
+        let mostVisiblePage = -1;
+        let maxRatio = 0;
 
-        const topEntry = intersectingEntries.reduce((prev, curr) =>
-          Math.abs(curr.boundingClientRect.top) <
-          Math.abs(prev.boundingClientRect.top)
-            ? curr
-            : prev
-        );
+        entries.forEach((entry) => {
+          const pageNum = Number(entry.target.getAttribute("data-page-number"));
+          if (entry.isIntersecting && entry.intersectionRatio > maxRatio) {
+            maxRatio = entry.intersectionRatio;
+            mostVisiblePage = pageNum;
+          }
+        });
 
-        const pageNum = Number(topEntry.target.getAttribute("data-page-number"));
-        if (pageNum) {
-          if (debounceTimer) clearTimeout(debounceTimer);
-          debounceTimer = setTimeout(() => {
-            if (!isProgrammaticScroll.current) {
-              onVisiblePageChange(pageNum);
-            }
-          }, 150);
+        if (mostVisiblePage > 0) {
+          onVisiblePageChange(mostVisiblePage);
         }
       },
       {
-        root: null,
-        rootMargin: "-10% 0px -40% 0px",
-        threshold: [0, 0.25, 0.5],
+        root: containerRef.current,
+        threshold: [0.1, 0.3, 0.5, 0.7, 0.9],
       }
     );
 
-    pageRefs.current.forEach((element) => {
-      if (element) observer.observe(element);
-    });
+    const currentMap = pageRefs.current;
+    currentMap.forEach((el) => observer.observe(el));
 
     return () => {
-      if (debounceTimer) clearTimeout(debounceTimer);
       observer.disconnect();
+      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
     };
-  }, [pages, onVisiblePageChange]);
+  }, [startPage, endPage, onVisiblePageChange]);
 
-  const renderedWidth = Math.round(containerWidth * scale);
+  const pageNumbers = useMemo(() => {
+    const list: number[] = [];
+    for (let i = startPage; i <= endPage; i++) {
+      list.push(i);
+    }
+    return list;
+  }, [startPage, endPage]);
 
   return (
     <div
       ref={containerRef}
-      className="flex flex-col items-center w-full max-w-4xl mx-auto py-6 px-2 sm:px-4"
+      className="flex flex-col items-center gap-6 py-8 px-4 w-full h-full overflow-y-auto"
     >
-      <div className="flex flex-col items-center gap-8 w-full">
-        {pages.map((pageNum) => (
-          <PdfPageItem
-            key={pageNum}
-            pdf={pdf}
-            pageNum={pageNum}
-            width={renderedWidth}
-            onMountElement={handleMountElement}
-          />
-        ))}
+      {/* Pages List */}
+      {pageNumbers.map((pageNum) => (
+        <div
+          key={pageNum}
+          ref={(el) => handleMountElement(pageNum, el)}
+          data-page-number={pageNum}
+          className="relative shadow-xl rounded-lg overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-white transition-shadow duration-300 hover:shadow-2xl"
+          style={{ width: `${containerWidth * scale}px` }}
+        >
+          {/* Subtle Page Number Indicator on Top */}
+          <div className="absolute top-2 right-3 z-10 text-[10px] font-medium text-zinc-400 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm px-2 py-0.5 rounded shadow-sm">
+            Pág. {pageNum}
+          </div>
 
-        {/* End of Chapter / Gamification Card */}
-        <div className="w-full max-w-lg mt-6 p-6 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-md text-center space-y-4">
+          <Page
+            pageNumber={pageNum}
+            width={containerWidth * scale}
+            renderTextLayer={true}
+            renderAnnotationLayer={true}
+            loading={
+              <div
+                className="flex items-center justify-center bg-zinc-50 dark:bg-zinc-900 text-zinc-400 text-xs animate-pulse"
+                style={{
+                  width: `${containerWidth * scale}px`,
+                  height: `${(containerWidth * scale) * 1.414}px`,
+                }}
+              >
+                Cargando página {pageNum}...
+              </div>
+            }
+          />
+        </div>
+      ))}
+
+      {/* End of Chapter Action Card */}
+      <div
+        className="w-full max-w-xl my-8 p-6 rounded-2xl border bg-gradient-to-b from-zinc-50 to-white dark:from-zinc-900 dark:to-zinc-950 border-zinc-200 dark:border-zinc-800 shadow-lg text-center animate-in fade-in duration-300"
+      >
+        <div className="space-y-3">
           <div className="space-y-1">
-            <span
-              className={`text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-full inline-block ${
-                isPreliminary
-                  ? "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300"
-                  : isCurrentChapterCompleted
-                  ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-                  : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
-              }`}
-            >
+            <span className="text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
               {isPreliminary
                 ? "📖 Sección Introductoria"
                 : isCurrentChapterCompleted
                 ? "✅ Capítulo Superado"
+                : hasActiveQuizSession
+                ? "⚔️ Desafío en Pausa"
                 : "⚔️ Desafío de Nivel"}
             </span>
 
@@ -283,6 +203,8 @@ export default function PdfViewer({
                 ? "Has terminado de ver esta sección preliminar. Puedes avanzar libremente al primer capítulo del libro."
                 : isCurrentChapterCompleted
                 ? "Ya has superado este capítulo. Puedes releerlo libremente o continuar tu camino."
+                : hasActiveQuizSession && quizSessionInfo
+                ? `Tienes un quiz en pausa en la Pregunta ${quizSessionInfo.currentQuestion} de ${quizSessionInfo.totalQuestions} (${quizSessionInfo.lives} ${quizSessionInfo.lives === 1 ? "vida" : "vidas"}).`
                 : "Has terminado las páginas de este capítulo. Responde el quiz para desbloquear el siguiente nivel."}
             </p>
           </div>
@@ -292,7 +214,7 @@ export default function PdfViewer({
               <button
                 type="button"
                 onClick={onPrevChapter}
-                className="px-4 py-2.5 text-sm font-medium rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-all"
+                className="px-4 py-2.5 text-sm font-medium rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-all cursor-pointer"
               >
                 ← Anterior
               </button>
@@ -303,7 +225,7 @@ export default function PdfViewer({
               <button
                 type="button"
                 onClick={onNextChapter}
-                className="px-6 py-2.5 text-sm font-semibold rounded-xl bg-blue-600 text-white hover:bg-blue-500 shadow-md transition-all flex items-center gap-2"
+                className="px-6 py-2.5 text-sm font-semibold rounded-xl bg-blue-600 text-white hover:bg-blue-500 shadow-md transition-all flex items-center gap-2 cursor-pointer"
               >
                 <span>Comenzar Lectura ➔</span>
               </button>
@@ -314,10 +236,20 @@ export default function PdfViewer({
               <button
                 type="button"
                 onClick={onStartQuiz}
-                className="px-5 py-2.5 text-sm font-semibold rounded-xl bg-amber-500 text-zinc-950 hover:bg-amber-400 shadow-md hover:shadow-lg transition-all flex items-center gap-2"
+                className={`px-5 py-2.5 text-sm font-semibold rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer ${
+                  hasActiveQuizSession
+                    ? "bg-emerald-500 text-white hover:bg-emerald-400"
+                    : "bg-amber-500 text-zinc-950 hover:bg-amber-400"
+                }`}
               >
-                <span>🎯</span>
-                <span>Comenzar Quiz del Nivel</span>
+                <span>{hasActiveQuizSession ? "▶️" : "🎯"}</span>
+                <span>
+                  {hasActiveQuizSession
+                    ? quizSessionInfo
+                      ? `Continuar Quiz del Nivel (Pregunta ${quizSessionInfo.currentQuestion}/${quizSessionInfo.totalQuestions})`
+                      : "Continuar Quiz del Nivel"
+                    : "Comenzar Quiz del Nivel"}
+                </span>
               </button>
             )}
 
@@ -326,7 +258,7 @@ export default function PdfViewer({
               <button
                 type="button"
                 onClick={onNextChapter}
-                className="px-5 py-2.5 text-sm font-medium rounded-xl bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 shadow-sm transition-all"
+                className="px-5 py-2.5 text-sm font-medium rounded-xl bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 shadow-sm transition-all cursor-pointer"
               >
                 Siguiente Capítulo →
               </button>

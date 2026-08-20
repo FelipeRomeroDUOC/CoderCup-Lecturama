@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Chapter } from "@/types/pdf";
 import { isPreliminarySection } from "@/lib/chapterClassifier";
+import { getClientUserId } from "@/lib/clientSession";
 
 interface UseGamificationProps {
   chapters: Chapter[];
@@ -15,7 +16,16 @@ export function useGamification({
   bookTitle = "default_book",
   nonPlayableChapterIds = [],
 }: UseGamificationProps) {
-  const storageKey = `codercup_progress_${bookTitle.replace(/\s+/g, "_")}`;
+  const [userId, setUserId] = useState<string>("default_user");
+
+  useEffect(() => {
+    setUserId(getClientUserId());
+  }, []);
+
+  const storageKey = useMemo(() => {
+    const cleanTitle = bookTitle.replace(/\s+/g, "_");
+    return `codercup_${userId}_${cleanTitle}_progress`;
+  }, [userId, bookTitle]);
 
   const isFiller = useCallback(
     (chapter?: Chapter): boolean => {
@@ -42,7 +52,7 @@ export function useGamification({
     setMaxUnlockedIndex((prev) => Math.max(prev, firstPlayableIndex));
   }, [firstPlayableIndex]);
 
-  // Load saved progress from localStorage on mount
+  // Load saved progress from localStorage on mount or when storageKey changes
   useEffect(() => {
     try {
       const saved = localStorage.getItem(storageKey);
@@ -146,12 +156,11 @@ export function useGamification({
   }, [storageKey, firstPlayableIndex]);
 
   return {
-    completedChapterIds,
-    maxUnlockedIndex,
     isChapterCompleted,
     isChapterUnlocked,
     markChapterCompleted,
     resetProgress,
-    firstPlayableIndex,
+    maxUnlockedIndex,
+    completedChapterIds,
   };
 }
