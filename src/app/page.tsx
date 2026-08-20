@@ -33,13 +33,13 @@ export default function Home() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-6 text-center">
-      <div className="w-full max-w-xl space-y-8">
-        <div className="space-y-3">
-          <h1 className="text-4xl font-bold tracking-tight">
-            ¿Quién Quiere Ser Lector?
+      <div className="w-full max-w-2xl space-y-8">
+        <div className="space-y-4">
+          <h1 className="text-5xl sm:text-6xl md:text-7xl font-extrabold tracking-tight font-[family-name:var(--font-outfit)] text-zinc-900 dark:text-zinc-100">
+            LECTURAMA
           </h1>
-          <p className="text-lg text-zinc-600 dark:text-zinc-400">
-            Herramienta para leer libros con elementos de gamificación
+          <p className="text-2xl sm:text-3xl font-[family-name:var(--font-patrick-hand)] text-zinc-600 dark:text-zinc-300 max-w-lg mx-auto leading-relaxed">
+            La plataforma que convierte la lectura en aprendizaje entretenido, donde cada libro esconde un reto.
           </p>
         </div>
 

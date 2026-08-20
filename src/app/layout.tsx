@@ -1,10 +1,17 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Outfit, Patrick_Hand, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const outfit = Outfit({
+  variable: "--font-outfit",
   subsets: ["latin"],
+  weight: ["500", "600", "700", "800", "900"],
+});
+
+const patrickHand = Patrick_Hand({
+  variable: "--font-patrick-hand",
+  subsets: ["latin"],
+  weight: ["400"],
 });
 
 const geistMono = Geist_Mono({
@@ -13,8 +20,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "¿Quién Quiere Ser Lector?",
-  description: "Herramienta para leer libros con elementos de gamificación",
+  title: "LECTURAMA",
+  description:
+    "La plataforma que convierte la lectura en aprendizaje entretenido, donde cada libro esconde un reto.",
 };
 
 export default function RootLayout({
@@ -25,9 +33,9 @@ export default function RootLayout({
   return (
     <html
       lang="es"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${outfit.variable} ${patrickHand.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col font-sans">{children}</body>
     </html>
   );
 }
