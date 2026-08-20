@@ -12,9 +12,14 @@ function getGeminiClient(): GoogleGenAI {
   return new GoogleGenAI({ apiKey });
 }
 
-const PRIMARY_MODEL = process.env.GEMINI_MODEL || "gemini-3.6-flash";
-const FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || "gemini-3.5-flash";
-const CANDIDATE_MODELS = [PRIMARY_MODEL, FALLBACK_MODEL];
+// Model configurations
+const QUESTIONS_PRIMARY_MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash";
+const QUESTIONS_FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || "gemini-3.5-flash-lite";
+const QUESTIONS_CANDIDATE_MODELS = [QUESTIONS_PRIMARY_MODEL, QUESTIONS_FALLBACK_MODEL];
+
+const CLASSIFY_PRIMARY_MODEL = process.env.GEMINI_CLASSIFY_MODEL || "gemma-4-31b-it";
+const CLASSIFY_FALLBACK_MODEL = "gemini-3.5-flash-lite";
+const CLASSIFY_CANDIDATE_MODELS = [CLASSIFY_PRIMARY_MODEL, CLASSIFY_FALLBACK_MODEL];
 
 interface RawGeminiQuestion {
   id?: string;
@@ -216,7 +221,7 @@ ${chapterText}
 
 /**
  * Classifies whether an ambiguous section is playable narrative content or filler/paratext.
- * Implements model fallback from primary model to fallback model on 503/429.
+ * Primary model: gemma-4-31b-it, Fallback model: gemini-3.5-flash-lite.
  */
 export async function classifyChapterPlayability(
   sectionTitle: string,
@@ -235,7 +240,7 @@ ${snippetText.slice(0, 1500)}
 
 Devuelve un JSON estrictamente con { "isPlayable": boolean }.`;
 
-  for (const modelName of CANDIDATE_MODELS) {
+  for (const modelName of CLASSIFY_CANDIDATE_MODELS) {
     try {
       const response = await ai.models.generateContent({
         model: modelName,
@@ -270,7 +275,7 @@ Devuelve un JSON estrictamente con { "isPlayable": boolean }.`;
 
 /**
  * Generates 5 multiple-choice questions for a book chapter using Gemini AI.
- * Implements model fallback from primary to fallback model with backoff on 503/429.
+ * Primary model: gemini-3.5-flash, Fallback model: gemini-3.5-flash-lite.
  */
 export async function generateChapterQuiz(
   chapterText: string,
@@ -294,7 +299,7 @@ export async function generateChapterQuiz(
 
   let lastError: unknown = null;
 
-  for (const modelName of CANDIDATE_MODELS) {
+  for (const modelName of QUESTIONS_CANDIDATE_MODELS) {
     const maxRetries = 1;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
