@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { QuizQuestion } from "@/types/quiz";
 
 interface QuizModalProps {
@@ -28,6 +28,9 @@ export default function QuizModal({
   const [isGameOver, setIsGameOver] = useState<boolean>(false);
   const [correctAnswersCount, setCorrectAnswersCount] = useState<number>(0);
 
+  const lastChapterTitleRef = useRef<string>(chapterTitle);
+  const lastQuestionsRef = useRef<QuizQuestion[]>(questions);
+
   const resetQuiz = useCallback(() => {
     setCurrentQuestionIndex(0);
     setSelectedOptionIndex(null);
@@ -38,12 +41,18 @@ export default function QuizModal({
     setCorrectAnswersCount(0);
   }, []);
 
-  // Reset quiz state when modal opens or questions change
+  // Only reset quiz state if the chapter or question set actually changed
   useEffect(() => {
-    if (isOpen) {
+    const isNewChapter =
+      lastChapterTitleRef.current !== chapterTitle ||
+      lastQuestionsRef.current !== questions;
+
+    if (isNewChapter) {
+      lastChapterTitleRef.current = chapterTitle;
+      lastQuestionsRef.current = questions;
       resetQuiz();
     }
-  }, [isOpen, questions, resetQuiz]);
+  }, [chapterTitle, questions, resetQuiz]);
 
   if (!isOpen || questions.length === 0) return null;
 
