@@ -86,18 +86,36 @@ export function useGamification({
   );
 
   const isChapterUnlocked = useCallback(
-    (chapterId: string, index: number): boolean => {
-      // If no outline exists, everything is open
+    (chapterId: string, index?: number): boolean => {
+      // If no chapters, everything is open
       if (chapters.length === 0) return true;
 
-      const chapter = chapters[index];
+      // Find global linear index of this chapter
+      const globalIndex = chapters.findIndex((c) => c.id === chapterId);
+      const targetIndex =
+        globalIndex >= 0
+          ? globalIndex
+          : typeof index === "number"
+          ? index
+          : -1;
+      const chapter = targetIndex >= 0 ? chapters[targetIndex] : null;
+
       // Preliminary/filler sections are always unlocked for free reading
-      if (isFiller(chapter)) {
+      if (chapter && isFiller(chapter)) {
         return true;
       }
 
-      // Playable chapters unlock in sequence or if completed
-      return index <= maxUnlockedIndex || completedChapterIds.includes(chapterId);
+      // If chapter is already completed, it is unlocked
+      if (completedChapterIds.includes(chapterId)) {
+        return true;
+      }
+
+      // If found in global progression list
+      if (targetIndex >= 0) {
+        return targetIndex <= maxUnlockedIndex;
+      }
+
+      return false;
     },
     [chapters, maxUnlockedIndex, completedChapterIds, isFiller]
   );

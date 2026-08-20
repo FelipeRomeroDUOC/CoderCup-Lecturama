@@ -11,7 +11,7 @@ interface ChapterSidebarProps {
   onSelectChapter: (chapter: Chapter) => void;
   isOpen: boolean;
   onToggle: () => void;
-  isChapterUnlocked?: (chapterId: string, index: number) => boolean;
+  isChapterUnlocked?: (chapterId: string, index?: number) => boolean;
   isChapterCompleted?: (chapterId: string) => boolean;
   nonPlayableChapterIds?: string[];
 }
@@ -44,14 +44,21 @@ export default function ChapterSidebar({
             : ""
         }`}
       >
-        {items.map((chapter, index) => {
+        {items.map((chapter) => {
           const isActive = activeChapterId === chapter.id;
           const isPreliminary = isFiller(chapter);
+          const hasSubItems = Boolean(chapter.items && chapter.items.length > 0);
+
+          // For container chapters, check if any sub-item is unlocked
           const isUnlocked = isChapterUnlocked
-            ? isChapterUnlocked(chapter.id, index)
+            ? isChapterUnlocked(chapter.id) ||
+              (hasSubItems && chapter.items!.some((sub) => isChapterUnlocked(sub.id)))
             : true;
+
+          // For container chapters, check if all sub-items are completed
           const isCompleted = isChapterCompleted
-            ? isChapterCompleted(chapter.id)
+            ? isChapterCompleted(chapter.id) ||
+              (hasSubItems && chapter.items!.every((sub) => isChapterCompleted(sub.id)))
             : false;
 
           let icon = "📖";
@@ -61,6 +68,8 @@ export default function ChapterSidebar({
             icon = "🔒";
           } else if (isCompleted) {
             icon = "✅";
+          } else if (hasSubItems) {
+            icon = "📖";
           }
 
           return (
@@ -82,16 +91,16 @@ export default function ChapterSidebar({
                     ? "Capítulo completado (Lectura libre)"
                     : chapter.title
                 }
-                className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-all flex items-center justify-between gap-2 ${
+                className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-all flex items-center justify-between gap-2 select-none ${
                   !isUnlocked
-                    ? "opacity-40 cursor-not-allowed bg-zinc-100/50 dark:bg-zinc-900/30 text-zinc-400"
+                    ? "opacity-35 cursor-not-allowed hover:cursor-not-allowed bg-zinc-100/30 dark:bg-zinc-900/20 text-zinc-400 dark:text-zinc-600 pointer-events-auto"
                     : isActive
                     ? "bg-zinc-900 text-white font-semibold shadow-sm dark:bg-zinc-100 dark:text-zinc-900"
                     : isCompleted
-                    ? "text-zinc-800 dark:text-zinc-200 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                    ? "text-zinc-800 dark:text-zinc-200 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 cursor-pointer"
                     : isPreliminary
-                    ? "text-zinc-700 dark:text-zinc-300 hover:bg-blue-50 dark:hover:bg-blue-950/20"
-                    : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800/60"
+                    ? "text-zinc-700 dark:text-zinc-300 hover:bg-blue-50 dark:hover:bg-blue-950/20 cursor-pointer"
+                    : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 cursor-pointer"
                 }`}
               >
                 <div className="flex items-center gap-2 min-w-0 truncate">
@@ -102,12 +111,12 @@ export default function ChapterSidebar({
                 <span
                   className={`text-xs px-1.5 py-0.5 rounded shrink-0 ${
                     !isUnlocked
-                      ? "text-zinc-400 bg-zinc-200/50 dark:bg-zinc-800/50"
-                    : isActive
+                      ? "text-zinc-400/80 bg-zinc-200/30 dark:bg-zinc-800/30"
+                      : isActive
                       ? "bg-zinc-800 text-zinc-300 dark:bg-zinc-200 dark:text-zinc-800"
-                    : isCompleted
+                      : isCompleted
                       ? "text-emerald-700 bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-300"
-                    : isPreliminary
+                      : isPreliminary
                       ? "text-blue-700 bg-blue-100 dark:bg-blue-950 dark:text-blue-300"
                       : "text-zinc-500 bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-400"
                   }`}
@@ -158,14 +167,11 @@ export default function ChapterSidebar({
         ) : hasOutline === false ? (
           <div className="p-4 text-sm text-zinc-500 text-center space-y-2">
             <p>Este PDF no contiene una tabla de contenidos embebida.</p>
-            <p className="text-xs text-zinc-400">
-              Puedes navegar usando las flechas de página inferiores.
-            </p>
           </div>
         ) : chapters.length === 0 ? (
-          <p className="p-4 text-sm text-zinc-500 text-center">
-            No se encontraron capítulos.
-          </p>
+          <div className="p-4 text-sm text-zinc-500 text-center space-y-2">
+            <p>No se encontraron capítulos en el documento.</p>
+          </div>
         ) : (
           renderChapterList(chapters)
         )}
