@@ -359,7 +359,7 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
   const handleDevReset = useCallback(async () => {
     if (
       !window.confirm(
-        "🛠️ [MODO DESARROLLADOR]\n\n¿Estás seguro de que deseas reiniciar todos los niveles, bloquearlos nuevamente y borrar las preguntas en caché?"
+        "🛠️ [MODO DESARROLLADOR]\n\n¿Estás seguro de que deseas reiniciar la detección de capítulos, bloquear los niveles y vaciar la memoria en caché?"
       )
     ) {
       return;
@@ -369,16 +369,25 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
       await fetch("/api/dev/reset", { method: "POST" });
       resetProgress();
       setNonPlayableChapterIds([]);
+      setQuizQuestions([]);
+      setIsQuizOpen(false);
+      setQuizError(null);
+
+      // Re-trigger chapter extraction and classification from scratch
+      if (pdfDocument) {
+        extractChapters(pdfDocument, numPages);
+      }
+
       if (flattenedChapters.length > 0) {
         setActiveChapterId(flattenedChapters[0].id);
         setCurrentPage(flattenedChapters[0].startPage);
         setScrollToPage(flattenedChapters[0].startPage);
       }
-      alert("✅ Progreso y preguntas en caché reiniciados con éxito.");
+      alert("✅ Detección de capítulos, niveles y preguntas reiniciados con éxito.");
     } catch (err) {
       console.error("Error al reiniciar progreso dev:", err);
     }
-  }, [resetProgress, flattenedChapters]);
+  }, [resetProgress, pdfDocument, numPages, extractChapters, flattenedChapters]);
 
   const zoomIn = () => setScale((prev) => Math.min(prev + 0.15, 2.0));
   const zoomOut = () => setScale((prev) => Math.max(prev - 0.15, 0.6));
