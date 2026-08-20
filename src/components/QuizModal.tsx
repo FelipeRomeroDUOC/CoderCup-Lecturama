@@ -56,37 +56,30 @@ export default function QuizModal({
   useEffect(() => {
     if (!isOpen) return;
 
-    const isNewChapter = lastChapterIdRef.current !== chapterId;
     lastChapterIdRef.current = chapterId;
+    const savedSession = getQuizSession(userId, bookTitle, chapterId);
 
-    if (isNewChapter) {
-      // Check if the new chapter has a saved session
-      const savedSession = getQuizSession(userId, bookTitle, chapterId);
-      if (savedSession) {
-        setCurrentQuestionIndex(savedSession.currentQuestionIndex || 0);
-        setSelectedOptionIndex(savedSession.selectedOptionIndex ?? null);
-        setIsAnswerSubmitted(Boolean(savedSession.isAnswerSubmitted));
-        setLives(typeof savedSession.lives === "number" ? savedSession.lives : 3);
-        setCorrectAnswersCount(savedSession.correctAnswersCount || 0);
-        setIsVictory(false);
-        setIsGameOver(false);
-      } else {
-        resetQuiz();
-      }
+    // Verify if saved session matches current questions
+    const isMatchingSession =
+      savedSession &&
+      Array.isArray(savedSession.questions) &&
+      savedSession.questions.length > 0 &&
+      questions.length > 0 &&
+      savedSession.questions[0].question === questions[0].question;
+
+    if (isMatchingSession && savedSession) {
+      setCurrentQuestionIndex(savedSession.currentQuestionIndex || 0);
+      setSelectedOptionIndex(savedSession.selectedOptionIndex ?? null);
+      setIsAnswerSubmitted(Boolean(savedSession.isAnswerSubmitted));
+      setLives(typeof savedSession.lives === "number" ? savedSession.lives : 3);
+      setCorrectAnswersCount(savedSession.correctAnswersCount || 0);
+      setIsVictory(false);
+      setIsGameOver(false);
     } else {
-      // Reopening same chapter: load saved session if exists
-      const savedSession = getQuizSession(userId, bookTitle, chapterId);
-      if (savedSession) {
-        setCurrentQuestionIndex(savedSession.currentQuestionIndex || 0);
-        setSelectedOptionIndex(savedSession.selectedOptionIndex ?? null);
-        setIsAnswerSubmitted(Boolean(savedSession.isAnswerSubmitted));
-        setLives(typeof savedSession.lives === "number" ? savedSession.lives : 3);
-        setCorrectAnswersCount(savedSession.correctAnswersCount || 0);
-        setIsVictory(false);
-        setIsGameOver(false);
-      }
+      // If no valid session or questions changed/reset, start fresh at question 1
+      resetQuiz();
     }
-  }, [isOpen, chapterId, userId, bookTitle, resetQuiz]);
+  }, [isOpen, chapterId, questions, userId, bookTitle, resetQuiz]);
 
   // Auto-save quiz session state to localStorage on changes
   useEffect(() => {
