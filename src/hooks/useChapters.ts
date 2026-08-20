@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { Chapter } from "@/types/pdf";
+import { detectVisualChapters } from "@/lib/visualChapterDetector";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 
 interface PDFOutlineItem {
@@ -19,11 +20,18 @@ export function useChapters() {
       try {
         const outline = (await pdfDocument.getOutline()) as PDFOutlineItem[] | null;
 
+        // 1. If outline is missing or empty, attempt visual layout detection
         if (!outline || outline.length === 0) {
+          const visualChapters = await detectVisualChapters(pdfDocument, totalPages);
+
+          if (visualChapters.length > 0) {
+            setChapters(visualChapters);
+            setHasOutline(true);
+            return;
+          }
+
           setChapters([]);
           setHasOutline(false);
-          // TODO: En caso de que el PDF no tenga outline/tabla de contenidos embebida,
-          // implementar en una fase posterior heurísticas o detección inteligente de capítulos.
           return;
         }
 
@@ -122,6 +130,21 @@ export function useChapters() {
         };
 
         const resolvedChapters = assignEndPages(rawList, totalPages);
+
+        // If outline only has 1 massive chapter spanning all pages, attempt visual chapter splitting
+        if (
+          resolvedChapters.length === 1 &&
+          resolvedChapters[0].startPage === 1 &&
+          resolvedChapters[0].endPage >= totalPages &&
+          totalPages >= 5
+        ) {
+          const visualChapters = await detectVisualChapters(pdfDocument, totalPages);
+          if (visualChapters.length > 1) {
+            setChapters(visualChapters);
+            return;
+          }
+        }
+
         setChapters(resolvedChapters);
       } catch (err) {
         console.error("Error al extraer capítulos del PDF:", err);
