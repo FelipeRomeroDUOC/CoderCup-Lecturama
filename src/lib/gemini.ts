@@ -21,6 +21,9 @@ const CLASSIFY_PRIMARY_MODEL = process.env.GEMINI_CLASSIFY_MODEL || "gemma-4-31b
 const CLASSIFY_FALLBACK_MODEL = "gemini-3.5-flash-lite";
 const CLASSIFY_CANDIDATE_MODELS = [CLASSIFY_PRIMARY_MODEL, CLASSIFY_FALLBACK_MODEL];
 
+// Maximum allowed time per model call before triggering fast fallback (8 seconds)
+const MODEL_TIMEOUT_MS = 8000;
+
 interface RawGeminiQuestion {
   id?: string;
   question: string;
@@ -75,19 +78,21 @@ const playabilityResponseSchema = {
   required: ["isPlayable"],
 };
 
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-function isRetryableError(err: unknown): boolean {
-  if (!(err instanceof Error)) return false;
-  const msg = err.message.toLowerCase();
-  return (
-    msg.includes("503") ||
-    msg.includes("unavailable") ||
-    msg.includes("high demand") ||
-    msg.includes("429") ||
-    msg.includes("resource_exhausted") ||
-    msg.includes("rate limit")
-  );
+/**
+ * Executes a promise with a hard timeout to protect against slow LLM reasoning or server delays.
+ */
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  errorMessage: string
+): Promise<T> {
+  let timer: NodeJS.Timeout;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(errorMessage));
+    }, timeoutMs);
+  });
+  return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timer));
 }
 
 /**
@@ -263,7 +268,7 @@ ${chapterText}
 
 /**
  * Classifies whether an ambiguous section is playable narrative content or filler/paratext.
- * Primary model: gemma-4-31b-it, Fallback model: gemini-3.5-flash-lite.
+ * Primary model: gemma-4-31b-it, Fast Fallback model: gemini-3.5-flash-lite.
  */
 export async function classifyChapterPlayability(
   sectionTitle: string,
@@ -295,11 +300,15 @@ Devuelve un JSON estrictamente con { "isPlayable": boolean }.`;
         config.thinkingConfig = { thinkingBudget: 512 };
       }
 
-      const response = await ai.models.generateContent({
-        model: modelName,
-        contents: prompt,
-        config: config as any,
-      });
+      const response = await withTimeout(
+        ai.models.generateContent({
+          model: modelName,
+          contents: prompt,
+          config: config as any,
+        }),
+        MODEL_TIMEOUT_MS,
+        `Timeout de ${MODEL_TIMEOUT_MS}ms en classify con modelo ${modelName}`
+      );
 
       const rawText = response.text?.trim();
       if (!rawText) return true;
@@ -319,12 +328,12 @@ Devuelve un JSON estrictamente con { "isPlayable": boolean }.`;
 
       return true;
     } catch (error) {
-      console.warn(`Error en classifyChapterPlayability con modelo ${modelName}:`, error);
-      if (isRetryableError(error)) {
-        await delay(1000);
-        continue; // Try fallback model
-      }
-      break;
+      console.warn(
+        `Modelo ${modelName} falló o excedió timeout en classify, conmutando al siguiente:`,
+        error instanceof Error ? error.message : error
+      );
+      // Fast fallback to next model immediately
+      continue;
     }
   }
 
@@ -334,7 +343,7 @@ Devuelve un JSON estrictamente con { "isPlayable": boolean }.`;
 
 /**
  * Generates 5 multiple-choice questions for a book chapter using Gemini AI.
- * Primary model: gemini-3.5-flash, Fallback model: gemini-3.5-flash-lite.
+ * Primary model: gemini-3.5-flash, Fast Fallback model: gemini-3.5-flash-lite.
  */
 export async function generateChapterQuiz(
   chapterText: string,
@@ -359,74 +368,64 @@ export async function generateChapterQuiz(
   let lastError: unknown = null;
 
   for (const modelName of QUESTIONS_CANDIDATE_MODELS) {
-    const maxRetries = 1;
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        const supportsThinking = modelName.toLowerCase().startsWith("gemini");
-        const config: Record<string, unknown> = {
-          responseMimeType: "application/json",
-          responseSchema: quizResponseSchema,
-          temperature: difficulty === "basic" ? 0.6 : 0.75,
-        };
+    try {
+      const supportsThinking = modelName.toLowerCase().startsWith("gemini");
+      const config: Record<string, unknown> = {
+        responseMimeType: "application/json",
+        responseSchema: quizResponseSchema,
+        temperature: difficulty === "basic" ? 0.6 : 0.75,
+      };
 
-        if (supportsThinking) {
-          config.thinkingConfig = { thinkingBudget: 512 };
-        }
+      if (supportsThinking) {
+        config.thinkingConfig = { thinkingBudget: 512 };
+      }
 
-        const response = await ai.models.generateContent({
+      const response = await withTimeout(
+        ai.models.generateContent({
           model: modelName,
           contents: prompt,
           config: config as any,
-        });
+        }),
+        MODEL_TIMEOUT_MS,
+        `Timeout de ${MODEL_TIMEOUT_MS}ms en generateQuiz con modelo ${modelName}`
+      );
 
-        const rawText = response.text?.trim();
-        if (!rawText) {
-          throw new Error("Gemini devolvió una respuesta vacía.");
-        }
-
-        const parsed = extractJsonFromText<RawGeminiQuestion[]>(rawText);
-
-        if (!Array.isArray(parsed) || parsed.length === 0) {
-          throw new Error("El formato de preguntas devuelto no es válido.");
-        }
-
-        // Match correct answer by text and shuffle options
-        const validatedQuestions: QuizQuestion[] = parsed.slice(0, 5).map((q, index) => {
-          const correctIndex = findCorrectIndex(q.options, q.correctAnswerText);
-          const { options: shuffledOptions, correctOptionIndex: shuffledIndex } =
-            shuffleOptionsAndIndex(q.options, correctIndex);
-
-          return {
-            id: q.id || `q${index + 1}`,
-            question: q.question,
-            options: shuffledOptions,
-            correctOptionIndex: shuffledIndex,
-            explanation: q.explanation || "",
-          };
-        });
-
-        // Also shuffle the order of the 5 questions
-        return shuffleArray(validatedQuestions);
-      } catch (err: unknown) {
-        lastError = err;
-        console.warn(`Intento ${attempt + 1} con modelo ${modelName} falló:`, err);
-
-        if (attempt < maxRetries && isRetryableError(err)) {
-          const backoffMs = (attempt + 1) * 1000;
-          await delay(backoffMs);
-          continue;
-        }
-
-        // If retries exhausted on this model and it's 503/429, try next fallback model
-        if (isRetryableError(err)) {
-          break;
-        }
-
-        // If non-retryable error, throw immediately
-        throw err instanceof Error
-          ? err
-          : new Error("Error desconocido al generar las preguntas con Gemini.");
+      const rawText = response.text?.trim();
+      if (!rawText) {
+        throw new Error("Gemini devolvió una respuesta vacía.");
       }
+
+      const parsed = extractJsonFromText<RawGeminiQuestion[]>(rawText);
+
+      if (!Array.isArray(parsed) || parsed.length === 0) {
+        throw new Error("El formato de preguntas devuelto no es válido.");
+      }
+
+      // Match correct answer by text and shuffle options
+      const validatedQuestions: QuizQuestion[] = parsed.slice(0, 5).map((q, index) => {
+        const correctIndex = findCorrectIndex(q.options, q.correctAnswerText);
+        const { options: shuffledOptions, correctOptionIndex: shuffledIndex } =
+          shuffleOptionsAndIndex(q.options, correctIndex);
+
+        return {
+          id: q.id || `q${index + 1}`,
+          question: q.question,
+          options: shuffledOptions,
+          correctOptionIndex: shuffledIndex,
+          explanation: q.explanation || "",
+        };
+      });
+
+      // Also shuffle the order of the 5 questions
+      return shuffleArray(validatedQuestions);
+    } catch (err: unknown) {
+      lastError = err;
+      console.warn(
+        `Modelo ${modelName} falló o tardó demasiado, conmutando inmediatamente al siguiente modelo:`,
+        err instanceof Error ? err.message : err
+      );
+      // Fast fallback to next model immediately without waiting
+      continue;
     }
   }
 

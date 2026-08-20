@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { classifyChapterPlayability } from "@/lib/gemini";
 import { classifySectionLocally } from "@/lib/chapterClassifier";
 
+export const maxDuration = 60;
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
