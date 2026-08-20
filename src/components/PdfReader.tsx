@@ -108,9 +108,10 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
     const list: Chapter[] = [];
     const flatten = (items: Chapter[]) => {
       for (const item of items) {
-        list.push(item);
         if (item.items && item.items.length > 0) {
           flatten(item.items);
+        } else {
+          list.push(item);
         }
       }
     };

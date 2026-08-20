@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { Chapter } from "@/types/pdf";
-import { detectVisualChapters } from "@/lib/visualChapterDetector";
+import { detectVisualChapters, detectSubchaptersInRange } from "@/lib/visualChapterDetector";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 
 interface PDFOutlineItem {
@@ -20,7 +20,7 @@ export function useChapters() {
       try {
         const outline = (await pdfDocument.getOutline()) as PDFOutlineItem[] | null;
 
-        // 1. If outline is missing or empty, attempt visual layout detection
+        // 1. If outline is missing or empty, attempt visual layout detection across entire document
         if (!outline || outline.length === 0) {
           const visualChapters = await detectVisualChapters(pdfDocument, totalPages);
 
@@ -131,21 +131,38 @@ export function useChapters() {
 
         const resolvedChapters = assignEndPages(rawList, totalPages);
 
-        // If outline only has 1 massive chapter spanning all pages, attempt visual chapter splitting
-        if (
-          resolvedChapters.length === 1 &&
-          resolvedChapters[0].startPage === 1 &&
-          resolvedChapters[0].endPage >= totalPages &&
-          totalPages >= 5
-        ) {
-          const visualChapters = await detectVisualChapters(pdfDocument, totalPages);
-          if (visualChapters.length > 1) {
-            setChapters(visualChapters);
-            return;
+        // 2. Subdivide long chapters (> 3 pages) by scanning internal subchapters
+        const enrichedChapters: Chapter[] = [];
+
+        for (let i = 0; i < resolvedChapters.length; i++) {
+          const ch = resolvedChapters[i];
+          const pageSpan = ch.endPage - ch.startPage + 1;
+
+          if (pageSpan >= 3 && (!ch.items || ch.items.length === 0)) {
+            try {
+              const subchapters = await detectSubchaptersInRange(
+                pdfDocument,
+                ch.startPage,
+                ch.endPage,
+                ch.id
+              );
+
+              if (subchapters.length > 1) {
+                enrichedChapters.push({
+                  ...ch,
+                  items: subchapters,
+                });
+                continue;
+              }
+            } catch (scanErr) {
+              console.warn(`Error scanning subchapters for chapter ${ch.title}:`, scanErr);
+            }
           }
+
+          enrichedChapters.push(ch);
         }
 
-        setChapters(resolvedChapters);
+        setChapters(enrichedChapters);
       } catch (err) {
         console.error("Error al extraer capítulos del PDF:", err);
         setChapters([]);
