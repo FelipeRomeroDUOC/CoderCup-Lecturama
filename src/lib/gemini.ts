@@ -13,8 +13,8 @@ function getGeminiClient(): GoogleGenAI {
 }
 
 // Fixed model configurations
-const QUESTIONS_PRIMARY_MODEL = "gemini-3.6-flash";
-const QUESTIONS_FALLBACK_MODEL = "gemini-3.5-flash-lite";
+const QUESTIONS_PRIMARY_MODEL = "gemini-3.5-flash-lite";
+const QUESTIONS_FALLBACK_MODEL = "gemini-3.6-flash";
 const QUESTIONS_CANDIDATE_MODELS = [QUESTIONS_PRIMARY_MODEL, QUESTIONS_FALLBACK_MODEL];
 
 const CLASSIFY_PRIMARY_MODEL = "gemma-4-31b-it";
@@ -22,8 +22,8 @@ const CLASSIFY_FALLBACK_MODEL = "gemini-3.5-flash-lite";
 const CLASSIFY_CANDIDATE_MODELS = [CLASSIFY_PRIMARY_MODEL, CLASSIFY_FALLBACK_MODEL];
 
 // Calibrated timeouts per task
-const QUIZ_PRIMARY_TIMEOUT_MS = 25000; // 25 seconds for deep pedagogical reasoning with 8 questions
-const QUIZ_FALLBACK_TIMEOUT_MS = 15000; // 15 seconds for fallback model
+const QUIZ_PRIMARY_TIMEOUT_MS = 20000; // 20 seconds for fast lite model (takes ~2.8s)
+const QUIZ_FALLBACK_TIMEOUT_MS = 30000; // 30 seconds for deep fallback model
 const CLASSIFY_TIMEOUT_MS = 6000; // 6 seconds for binary classification
 
 interface RawGeminiQuestion {
@@ -429,12 +429,17 @@ export async function generateChapterQuiz(
 
   for (const modelName of QUESTIONS_CANDIDATE_MODELS) {
     try {
+      const supportsThinking = modelName.toLowerCase().startsWith("gemini");
       const config: Record<string, unknown> = {
         responseMimeType: "application/json",
         responseSchema: quizResponseSchema,
         temperature: difficulty === "basic" ? 0.6 : 0.75,
-        maxOutputTokens: 4096,
+        maxOutputTokens: 8192,
       };
+
+      if (supportsThinking) {
+        config.thinkingConfig = { thinkingBudget: 512 };
+      }
 
       const timeoutMs =
         modelName === QUESTIONS_PRIMARY_MODEL
