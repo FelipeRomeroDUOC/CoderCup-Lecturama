@@ -270,12 +270,17 @@ ${audienceGuidelines}
 
 Prohibiciones estrictas en todas las dificultades:
 - NUNCA formules preguntas de memorización de datos aislados (fechas, cifras numéricas secundarias, nombres propios de objetos o sustantivos sueltos que se puedan responder escaneando una sola frase).
-- Cada pregunta debe requerir haber entendido el significado del pasaje.
+- Cada pregunta debe exigir comprensión profunda del pasaje.
 - El campo "correctAnswerText" DEBE ser una copia literal y exacta de una de las 4 opciones del arreglo "options".
+- NUNCA uses términos absolutos fáciles de descartar en las opciones incorrectas (como "nunca", "siempre", "totalmente", "ninguno", "nadie").
 
-Reglas para las alternativas incorrectas (distractores):
-- Las 4 opciones de cada pregunta deben tener una extensión y nivel de detalle similares entre sí — evita que la respuesta correcta sea notoriamente más larga o detallada que las demás.
-- Las 3 alternativas incorrectas deben ser plausibles, no absurdas. Construye, en lo posible: una demasiado general o vaga, una que tergiverse un solo elemento del texto (un nombre, una causa, un orden de los hechos), y una que sería correcta en otro contexto pero no en este pasaje específico.
+Reglas psicométricas obligatorias para las opciones y distractores:
+1. HOMOGENEIDAD TOTAL: Las 4 opciones de cada pregunta deben tener una longitud casi idéntica (mismo número aproximado de palabras y nivel de detalle) y comenzar con la misma estructura gramatical (mismo tiempo verbal o tipo de frase). Evita a toda costa que la respuesta correcta sea más larga, más elaborada, más matizada o más prudente que las demás.
+2. TRAMPAS Y DISTRACTORES DE ALTA VEROSIMILITUD: Cada una de las 3 alternativas incorrectas debe sonar totalmente convincente y legítima para quien leyó superficialmente:
+   - Distractor A (Trampa de Escaneo Literal): Emplea palabras clave o frases textuales reales del capítulo, pero atribuidas a otro momento, a una causa errónea o a otro personaje/idea.
+   - Distractor B (Causalidad Invertida o Causa Falsa): Plantea una consecuencia muy razonable, pero invierte el orden de causa-efecto o sustituye la motivación real por una secundaria.
+   - Distractor C (Sentido Común / Sobre-generalización): Afirma algo que parece moral o lógicamente verdadero en la vida real, pero que NO está respaldado por la evidencia específica del texto.
+3. SUTILEZA DE LA RESPUESTA CORRECTA: La opción correcta debe responder al núcleo de la pregunta de manera directa, precisa y sobria, sin utilizar un lenguaje llamativo ni dar pistas sintácticas.
 
 Texto del capítulo:
 """
