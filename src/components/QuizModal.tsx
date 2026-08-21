@@ -165,6 +165,18 @@ export default function QuizModal({
     }
   };
 
+  const handleAbandonQuiz = () => {
+    if (
+      window.confirm(
+        "🏳️ ¿Estás seguro de que deseas abandonar el quiz?\n\nSe perderá el progreso de las preguntas respondidas en este capítulo."
+      )
+    ) {
+      clearQuizSession(userId, bookTitle, chapterId);
+      resetQuiz();
+      onClose();
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="w-full max-w-xl bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden flex flex-col max-h-[90vh]">
@@ -369,13 +381,24 @@ export default function QuizModal({
         {/* Footer */}
         {!isVictory && !isGameOver && (
           <div className="px-6 py-4 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-900/50">
-            <button
-              type="button"
-              onClick={onClose}
-              className="text-xs font-medium text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 cursor-pointer"
-            >
-              Pausar y salir
-            </button>
+            <div className="flex items-center gap-4">
+              <button
+                type="button"
+                onClick={onClose}
+                className="text-xs font-medium text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 cursor-pointer transition-colors"
+              >
+                Pausar y salir
+              </button>
+              <button
+                type="button"
+                onClick={handleAbandonQuiz}
+                className="text-xs font-medium text-rose-500 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300 flex items-center gap-1 cursor-pointer transition-colors"
+                title="Descarta este quiz para reiniciar o cambiar de dificultad"
+              >
+                <span>🏳️</span>
+                <span>Abandonar quiz</span>
+              </button>
+            </div>
 
             {isAnswerSubmitted && (
               <button

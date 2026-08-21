@@ -10,6 +10,7 @@ import { classifySectionLocally } from "@/lib/chapterClassifier";
 import { getClientUserId } from "@/lib/clientSession";
 import {
   getQuizSession,
+  clearQuizSession,
   clearAllBookSessions,
   ActiveQuizSession,
 } from "@/lib/quizSessionStore";
@@ -86,15 +87,6 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
       // Ignore
     }
   }, []);
-
-  const handleDifficultyChange = (newDifficulty: QuizDifficulty) => {
-    setDifficulty(newDifficulty);
-    try {
-      localStorage.setItem("codercup_difficulty", newDifficulty);
-    } catch {
-      // Ignore
-    }
-  };
 
   // Memoize stable file reference
   const stableFile = useMemo(() => file, [file]);
@@ -180,6 +172,35 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
       lives: activeQuizSession.lives,
     };
   }, [activeQuizSession]);
+
+  const handleDifficultyChange = useCallback(
+    (newDifficulty: QuizDifficulty) => {
+      if (newDifficulty === difficulty) return;
+
+      if (activeChapter && hasActiveQuizSession) {
+        const confirmChange = window.confirm(
+          `Tienes un quiz en curso en este capítulo.\n\n¿Deseas cambiar la dificultad y descartar el intento actual para comenzar uno nuevo?`
+        );
+
+        if (!confirmChange) {
+          return;
+        }
+
+        // Clear active session for this chapter so the new difficulty takes effect
+        clearQuizSession(userId, file.name, activeChapter.id);
+        setQuizQuestions([]);
+        setIsQuizOpen(false);
+      }
+
+      setDifficulty(newDifficulty);
+      try {
+        localStorage.setItem("codercup_difficulty", newDifficulty);
+      } catch {
+        // Ignore
+      }
+    },
+    [difficulty, activeChapter, hasActiveQuizSession, userId, file.name]
+  );
 
   // Hybrid filler detection: automatically checks active chapter if not already classified
   useEffect(() => {
