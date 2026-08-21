@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { QuizQuestion, QuizDifficulty } from "@/types/quiz";
 
 // Initialize client on demand
@@ -11,6 +11,30 @@ function getGeminiClient(): GoogleGenAI {
   }
   return new GoogleGenAI({ apiKey });
 }
+
+// Permissive safety settings for literary and pedagogical analysis (avoids false-positive content blocking)
+const EDUCATIONAL_SAFETY_SETTINGS = [
+  {
+    category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+    threshold: HarmBlockThreshold.BLOCK_NONE,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+    threshold: HarmBlockThreshold.BLOCK_NONE,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+    threshold: HarmBlockThreshold.BLOCK_NONE,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+    threshold: HarmBlockThreshold.BLOCK_NONE,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY,
+    threshold: HarmBlockThreshold.BLOCK_NONE,
+  },
+];
 
 // Fixed model configurations
 const QUESTIONS_PRIMARY_MODEL = "gemini-3.5-flash-lite";
@@ -374,6 +398,7 @@ Devuelve un JSON estrictamente con { "isPlayable": boolean }.`;
         responseSchema: playabilityResponseSchema,
         temperature: 0.1,
         maxOutputTokens: 1024,
+        safetySettings: EDUCATIONAL_SAFETY_SETTINGS,
       };
 
       const response = await withTimeout(
@@ -451,6 +476,7 @@ export async function generateChapterQuiz(
         responseSchema: quizResponseSchema,
         temperature: difficulty === "basic" ? 0.6 : 0.75,
         maxOutputTokens: 8192,
+        safetySettings: EDUCATIONAL_SAFETY_SETTINGS,
       };
 
       if (supportsThinking) {
