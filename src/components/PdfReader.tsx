@@ -167,9 +167,13 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
     return flattenedChapters.findIndex((c) => c.id === activeChapter.id);
   }, [activeChapter, flattenedChapters]);
 
-  // Determine active start and end page
+  // Determine active start and end page (defaults safely to first chapter or page 1)
   const startPage = activeChapter ? activeChapter.startPage : 1;
-  const endPage = activeChapter ? activeChapter.endPage : numPages;
+  const endPage = activeChapter
+    ? activeChapter.endPage
+    : flattenedChapters.length > 0
+    ? flattenedChapters[0].endPage
+    : 1;
 
   // Dynamic version counter to force instant re-evaluation of localStorage quiz state
   const [quizSessionVersion, setQuizSessionVersion] = useState<number>(0);
@@ -660,43 +664,52 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
             >
               {pdfDocument && (
                 <main className="flex-1 pb-24">
-                  <PdfViewer
-                    pdf={pdfDocument}
-                    startPage={startPage}
-                    endPage={endPage}
-                    onVisiblePageChange={handleVisiblePageChange}
-                    scale={scale}
-                    activeChapterTitle={activeChapter?.title}
-                    hasNextChapter={
-                      currentChapterIndex >= 0 &&
-                      currentChapterIndex < flattenedChapters.length - 1
-                    }
-                    hasPrevChapter={currentChapterIndex > 0}
-                    isCurrentChapterCompleted={
-                      activeChapter ? isChapterCompleted(activeChapter.id) : false
-                    }
-                    isNextChapterUnlocked={
-                      currentChapterIndex >= 0 &&
-                      currentChapterIndex < flattenedChapters.length - 1
-                        ? isChapterUnlocked(
-                            flattenedChapters[currentChapterIndex + 1].id,
-                            currentChapterIndex + 1
-                          )
-                        : false
-                    }
-                    isNonPlayable={
-                      activeChapter
-                        ? isPreliminarySection(activeChapter.title) ||
-                          nonPlayableChapterIds.includes(activeChapter.id)
-                        : false
-                    }
-                    hasActiveQuizSession={hasActiveQuizSession}
-                    quizSessionInfo={quizSessionInfo}
-                    onNextChapter={handleNextChapter}
-                    onPrevChapter={handlePrevChapter}
-                    onStartQuiz={handleStartQuiz}
-                    scrollToPage={scrollToPage}
-                  />
+                  {isLoadingChapters || (chapters.length === 0 && hasOutline === null) ? (
+                    <div className="flex flex-col items-center justify-center p-24 space-y-4">
+                      <div className="w-10 h-10 border-4 border-amber-400 border-t-transparent rounded-full animate-spin" />
+                      <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                        Detectando capítulos y niveles...
+                      </p>
+                    </div>
+                  ) : (
+                    <PdfViewer
+                      pdf={pdfDocument}
+                      startPage={startPage}
+                      endPage={endPage}
+                      onVisiblePageChange={handleVisiblePageChange}
+                      scale={scale}
+                      activeChapterTitle={activeChapter?.title}
+                      hasNextChapter={
+                        currentChapterIndex >= 0 &&
+                        currentChapterIndex < flattenedChapters.length - 1
+                      }
+                      hasPrevChapter={currentChapterIndex > 0}
+                      isCurrentChapterCompleted={
+                        activeChapter ? isChapterCompleted(activeChapter.id) : false
+                      }
+                      isNextChapterUnlocked={
+                        currentChapterIndex >= 0 &&
+                        currentChapterIndex < flattenedChapters.length - 1
+                          ? isChapterUnlocked(
+                              flattenedChapters[currentChapterIndex + 1].id,
+                              currentChapterIndex + 1
+                            )
+                          : false
+                      }
+                      isNonPlayable={
+                        activeChapter
+                          ? isPreliminarySection(activeChapter.title) ||
+                            nonPlayableChapterIds.includes(activeChapter.id)
+                          : false
+                      }
+                      hasActiveQuizSession={hasActiveQuizSession}
+                      quizSessionInfo={quizSessionInfo}
+                      onNextChapter={handleNextChapter}
+                      onPrevChapter={handlePrevChapter}
+                      onStartQuiz={handleStartQuiz}
+                      scrollToPage={scrollToPage}
+                    />
+                  )}
                 </main>
               )}
             </Document>
