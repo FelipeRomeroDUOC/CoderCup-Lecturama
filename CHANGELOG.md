@@ -7,6 +7,20 @@ y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ---
 
+## [1.0.0-beta.3] - 2026-08-21
+
+Tercera versión beta que elimina de raíz la sobrecarga concurrente durante la apertura de PDFs y estabiliza la gamificación.
+
+### 🛡️ Corregido (Fixed)
+- **Prevención de Inundación de Páginas en Inicialización**:
+  - Se implementó un estado de espera (*"Detectando capítulos y niveles..."*) mientras se extrae el outline del libro, evitando que React 19 intente montar cientos de páginas simultáneas antes de conocer la estructura del documento.
+  - Se eliminó el rebote de `activeChapterId` por scroll dentro del capítulo, desacoplando la observación de página de la selección de niveles.
+  - Se corrigió el enlace de propiedades de gamificación (`isCurrentChapterCompleted`, `isNextChapterUnlocked`, `isNonPlayable`).
+- **Limpieza de Código**:
+  - Se retiraron todas las trazas y registros de telemetría temporal de depuración.
+
+---
+
 ## [1.0.0-beta.2] - 2026-08-21
 
 Segunda versión beta enfocada en estabilidad, concurrencia de renderizado y fluidez en la navegación.

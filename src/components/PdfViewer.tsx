@@ -58,8 +58,6 @@ function PdfViewerComponent({
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastReportedPageRef = useRef<number>(-1);
 
-  console.log(`[VIEWER-RENDER] Chapter: "${activeChapterTitle}", Pages ${startPage}-${endPage}, Scale: ${scale}`);
-
   const isPreliminary = isPreliminarySection(activeChapterTitle) || isNonPlayable;
 
   // Adjust page width responsively with hysteresis to avoid continuous layout shifts
@@ -115,7 +113,6 @@ function PdfViewerComponent({
         });
 
         if (mostVisiblePage > 0 && mostVisiblePage !== lastReportedPageRef.current) {
-          console.log(`[OBSERVER] Detected new most visible page: ${mostVisiblePage}`);
           lastReportedPageRef.current = mostVisiblePage;
           onVisiblePageChange(mostVisiblePage);
         }

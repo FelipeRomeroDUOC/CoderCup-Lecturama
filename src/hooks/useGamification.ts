@@ -49,9 +49,8 @@ export function useGamification({
 
   // Update initial unlocked index when chapters load
   useEffect(() => {
-    console.log(`[GAMIFICATION] chapters updated (count: ${chapters.length}), firstPlayableIndex: ${firstPlayableIndex}`);
     setMaxUnlockedIndex((prev) => (firstPlayableIndex > prev ? firstPlayableIndex : prev));
-  }, [firstPlayableIndex, chapters.length]);
+  }, [firstPlayableIndex]);
 
   // Load saved progress from localStorage on mount or when storageKey changes
   useEffect(() => {
@@ -59,7 +58,6 @@ export function useGamification({
       const saved = localStorage.getItem(storageKey);
       if (saved) {
         const parsed = JSON.parse(saved);
-        console.log(`[GAMIFICATION] Loaded progress from storage:`, parsed);
         if (Array.isArray(parsed.completedChapterIds)) {
           setCompletedChapterIds(parsed.completedChapterIds);
         }

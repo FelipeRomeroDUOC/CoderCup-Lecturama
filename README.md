@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Versión](https://img.shields.io/badge/versión-1.0.0--beta.2-amber?style=for-the-badge)
+![Versión](https://img.shields.io/badge/versión-1.0.0--beta.3-amber?style=for-the-badge)
 ![Estado](https://img.shields.io/badge/estado-beta%20pública-emerald?style=for-the-badge)
 ![Next.js](https://img.shields.io/badge/Next.js-16.3-black?style=for-the-badge&logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)

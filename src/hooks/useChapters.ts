@@ -16,16 +16,13 @@ export function useChapters() {
 
   const extractChapters = useCallback(
     async (pdfDocument: PDFDocumentProxy, totalPages: number) => {
-      console.log(`[CHAPTER-EXTRACTION] Start extracting for ${totalPages} pages`);
       setIsLoadingChapters(true);
       try {
         const outline = (await pdfDocument.getOutline()) as PDFOutlineItem[] | null;
-        console.log(`[CHAPTER-EXTRACTION] PDF outline found:`, Boolean(outline && outline.length > 0));
 
         // 1. If outline is missing or empty, attempt visual layout detection across entire document
         if (!outline || outline.length === 0) {
           const visualChapters = await detectVisualChapters(pdfDocument, totalPages);
-          console.log(`[CHAPTER-EXTRACTION] Visual detection found ${visualChapters.length} chapters`);
 
           if (visualChapters.length > 0) {
             setChapters(visualChapters);
