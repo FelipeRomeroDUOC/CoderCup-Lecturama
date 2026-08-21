@@ -110,9 +110,11 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
 
   const handleDocumentLoadSuccess = useCallback(
     (pdf: PDFDocumentProxy) => {
+      console.log(`[PDF-DOCUMENT] Document loaded successfully: ${pdf.numPages} pages`);
       setPdfDocument((prev) => (prev === pdf ? prev : pdf));
       setNumPages((prev) => (prev === pdf.numPages ? prev : pdf.numPages));
       if (extractedPdfRef.current !== pdf) {
+        console.log(`[PDF-DOCUMENT] Triggering chapter extraction for new PDF`);
         extractedPdfRef.current = pdf;
         extractChapters(pdf, pdf.numPages);
       }
