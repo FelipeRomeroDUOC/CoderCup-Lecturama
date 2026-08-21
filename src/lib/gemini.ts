@@ -13,7 +13,7 @@ function getGeminiClient(): GoogleGenAI {
 }
 
 // Fixed model configurations
-const QUESTIONS_PRIMARY_MODEL = "gemini-3.5-flash";
+const QUESTIONS_PRIMARY_MODEL = "gemini-3.6-flash";
 const QUESTIONS_FALLBACK_MODEL = "gemini-3.5-flash-lite";
 const QUESTIONS_CANDIDATE_MODELS = [QUESTIONS_PRIMARY_MODEL, QUESTIONS_FALLBACK_MODEL];
 
@@ -22,8 +22,8 @@ const CLASSIFY_FALLBACK_MODEL = "gemini-3.5-flash-lite";
 const CLASSIFY_CANDIDATE_MODELS = [CLASSIFY_PRIMARY_MODEL, CLASSIFY_FALLBACK_MODEL];
 
 // Calibrated timeouts per task
-const QUIZ_PRIMARY_TIMEOUT_MS = 22000; // 22 seconds for deep pedagogical reasoning with thinking mode
-const QUIZ_FALLBACK_TIMEOUT_MS = 10000; // 10 seconds for ultra-fast fallback model
+const QUIZ_PRIMARY_TIMEOUT_MS = 25000; // 25 seconds for deep pedagogical reasoning with 8 questions
+const QUIZ_FALLBACK_TIMEOUT_MS = 15000; // 15 seconds for fallback model
 const CLASSIFY_TIMEOUT_MS = 6000; // 6 seconds for binary classification
 
 interface RawGeminiQuestion {
