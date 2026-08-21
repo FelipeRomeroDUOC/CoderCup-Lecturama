@@ -576,15 +576,17 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
 
         {/* Right Controls: Developer Reset Tool & Zoom */}
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleDevReset}
-            className="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 transition-colors flex items-center gap-1 cursor-pointer"
-            title="[DEV] Reiniciar todos los niveles, bloquearlos nuevamente y vaciar caché del servidor"
-          >
-            <span>🛠️</span>
-            <span>Reset [DEV]</span>
-          </button>
+          {process.env.NODE_ENV === "development" && (
+            <button
+              type="button"
+              onClick={handleDevReset}
+              className="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 transition-colors flex items-center gap-1 cursor-pointer"
+              title="[DEV] Reiniciar todos los niveles, bloquearlos nuevamente y vaciar caché del servidor"
+            >
+              <span>🛠️</span>
+              <span>Reset [DEV]</span>
+            </button>
+          )}
 
           <div className="hidden sm:flex items-center gap-1 bg-zinc-800 rounded-lg p-1 border border-zinc-700 text-xs">
             <button
