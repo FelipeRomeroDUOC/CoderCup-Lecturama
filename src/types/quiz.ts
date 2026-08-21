@@ -12,13 +12,13 @@ export interface ChapterQuiz {
   chapterId: string;
   chapterTitle?: string;
   difficulty?: QuizDifficulty;
-  questions: QuizQuestion[]; // exactly 5 questions
+  questions: QuizQuestion[]; // exactly 8 questions
 }
 
 export interface ChapterProgress {
   sessionId: string;
   chapterId: string;
-  remainingLives: number; // starts at 3
+  remainingLives: number; // starts at 4
   isCompleted: boolean;
   score?: number;
 }

@@ -37,7 +37,7 @@ interface RawGeminiQuestion {
 // JSON Schema definition for structured outputs using exact text matching
 const quizResponseSchema = {
   type: Type.ARRAY,
-  description: "Lista de exactamente 5 preguntas de opción múltiple sobre el capítulo",
+  description: "Lista de exactamente 8 preguntas de opción múltiple sobre el capítulo",
   items: {
     type: Type.OBJECT,
     properties: {
@@ -222,32 +222,41 @@ function buildCalibratedPrompt(
     audienceGuidelines = `PÚBLICO OBJETIVO: Niños y escolares de Educación Básica / Primaria (8 a 12 años).
 - LENGUAJE: Muy claro, directo, sencillo y amigable. No uses vocabulario rebuscado ni palabras difíciles.
 - OPCIONES: Breves (1 sola línea corta por opción). Fáciles y rápidas de leer.
-- ENFOQUE DE LAS 5 PREGUNTAS:
+- ENFOQUE DE LAS 8 PREGUNTAS:
   1. Sentimientos y Emociones: ¿Cómo se sentía el personaje y por qué?
   2. Motivo evidente: ¿Por qué ocurrió un acontecimiento clave en la historia?
   3. Causa y consecuencia: ¿Qué pasó después de que un personaje tomó una decisión?
-  4. Moraleja o Idea Central: ¿Qué enseñanza o mensaje importante nos deja este capítulo?
-  5. Acción y desenlace: ¿Cómo se resolvió el momento más importante del capítulo?`;
+  4. Vocabulario en contexto: elige una palabra del capítulo y pregunta qué significa TAL COMO se usa en esa parte de la historia (no su definición de diccionario). Las opciones deben ser palabras parecidas, pero solo una debe calzar con el sentido exacto de esa frase.
+  5. Ir y volver en la historia: ¿Cómo se relaciona algo que pasó al principio del capítulo con algo que pasó más adelante?
+  6. Moraleja o Idea Central: ¿Qué enseñanza o mensaje importante nos deja este capítulo?
+  7. Acción y desenlace: ¿Cómo se resolvió el momento más importante del capítulo?
+  8. Cómo es el personaje: ¿Cómo nos damos cuenta de cómo es un personaje: por lo que el cuento nos dice directamente sobre él, o por lo que hace y dice? (En texto no narrativo: ¿cómo nos explica el autor las cosas para que las entendamos bien — con ejemplos, comparaciones o datos?)`;
   } else if (difficulty === "advanced") {
     audienceGuidelines = `PÚBLICO OBJETIVO: Lectores avanzados y adultos.
 - LENGUAJE: Maduro, analítico y preciso.
-- ENFOQUE DE LAS 5 PREGUNTAS:
-  1. Dilema moral y psicología: ¿Qué conflicto ético o contradicción interna define a los personajes?
-  2. Subtexto e inferencia: ¿Qué simbolismos, atmósfera o intenciones ocultas subyacen en la narrativa?
-  3. Estructura y causalidad: ¿Qué cadena de causa-efecto altera la trama?
-  4. Crítica y tema universal: ¿Qué reflexión profunda plantea este pasaje?
-  5. Transformación del punto de vista: ¿Cómo cambia el tono o la perspectiva al concluir el capítulo?`;
+- ENFOQUE DE LAS 8 PREGUNTAS:
+  1. Dilema moral y psicología: ¿Qué conflicto ético o contradicción interna define a los personajes? (En texto no narrativo: ¿qué tensión o contradicción interna atraviesa el argumento del autor?)
+  2. Subtexto e inferencia: ¿Qué simbolismos, atmósfera o intenciones ocultas subyacen en la narrativa? (En texto no narrativo: ¿qué supuestos no explicitados sostienen el argumento?)
+  3. Vocabulario en contexto: elige un término con matices o connotación específica en el pasaje, y pregunta su sentido preciso tal como se usa ahí, no su acepción general.
+  4. Estructura y causalidad: ¿Qué cadena de causa-efecto altera la trama o el desarrollo del argumento?
+  5. Relación entre partes del texto: ¿cómo se conecta, contrasta o se construye sobre sí misma una idea o escena presentada al inicio del capítulo respecto a cómo se desarrolla o resuelve hacia el final?
+  6. Crítica y tema universal: ¿Qué reflexión profunda plantea este pasaje?
+  7. Evaluación crítica: ¿qué tan confiable, sesgada o parcial es la perspectiva del narrador o autor? ¿qué evidencia dentro del texto sostiene o pone en duda esa perspectiva?
+  8. Caracterización y construcción de mundo: ¿el personaje se construye mediante caracterización directa (el narrador lo describe explícitamente) o indirecta (se revela mediante sus acciones, diálogos o la percepción de otros personajes)? ¿Qué elementos de ambientación, atmósfera o simbolismo contribuyen a construir el mundo narrativo? (En texto no narrativo: ¿qué recursos retóricos, tipo de evidencia o modalizadores discursivos usa el autor para construir y sostener su argumento, y qué revelan sobre su postura?)`;
   } else {
     // medium (default)
     audienceGuidelines = `PÚBLICO OBJETIVO: Jóvenes y estudiantes de Educación Media / Secundaria (13 a 17 años).
 - LENGUAJE: Natural, dinámico y comprensible. Evita tecnicismos innecesarios.
-- OPCIONES: Claramente redactadas, verosímiles y enfocadas en la trama.
-- ENFOQUE DE LAS 5 PREGUNTAS:
-  1. Motivación y conflicto: ¿Por qué un personaje toma cierta decisión o qué problema enfrenta?
+- OPCIONES: Claramente redactadas, verosímiles y enfocadas en la trama (o en las ideas, si el texto es expositivo/argumentativo).
+- ENFOQUE DE LAS 8 PREGUNTAS:
+  1. Motivación y conflicto: ¿Por qué un personaje toma cierta decisión o qué problema enfrenta? (En texto no narrativo: ¿qué motiva la postura o el argumento del autor?)
   2. Inferencia y contexto: ¿Qué se puede deducir sobre la situación que no esté dicho con palabras literales?
-  3. Causa y efecto: ¿Qué consecuencias directas tienen las acciones principales de este capítulo?
-  4. Idea principal: ¿Cuál es el acontecimiento o tema central de este fragmento?
-  5. Cambio de situación: ¿Cómo cambia la relación entre los personajes o el estado de las cosas a lo largo del capítulo?`;
+  3. Causa y efecto: ¿Qué consecuencias directas tienen las acciones o ideas principales de este capítulo?
+  4. Vocabulario en contexto: elige un término del capítulo cuyo sentido dependa del contexto (no una palabra obvia) y pregunta su significado tal como se usa en ese pasaje específico.
+  5. Relación entre partes del texto: ¿qué relación existe entre un fragmento puntual del capítulo (un párrafo, una escena, una idea) y el resto del capítulo? ¿Lo introduce, lo contradice, lo explica, lo resuelve?
+  6. Idea principal: ¿Cuál es el acontecimiento, tema o argumento central de este fragmento?
+  7. Evaluación: ¿qué tan sólida, coherente o verosímil es la actitud, decisión o argumento presentado? ¿hay algo que genere dudas o que no esté del todo justificado en el texto?
+  8. Construcción de personajes y mundo: ¿Qué recursos usa el autor para mostrar cómo es un personaje o cómo es el lugar donde ocurre la historia (descripciones, acciones, diálogos, detalles del entorno)? ¿Nos lo dice directamente o lo deducimos nosotros? (En texto no narrativo: ¿qué recursos usa el autor para desarrollar y sostener su argumento — ejemplos, datos, comparaciones, tono?)`;
   }
 
   return `Eres un docente y pedagogo experto en comprensión lectora y gamificación.
@@ -255,12 +264,18 @@ Tu objetivo es formular un desafío de COMPRENSIÓN LECTORA adaptado para el sig
     chapterTitle ? ` titulado "${chapterTitle}"` : ""
   }.
 
+Antes de generar las preguntas, determina si el capítulo es de tipo NARRATIVO/DRAMÁTICO (tiene personajes, trama, diálogos) o EXPOSITIVO/ARGUMENTATIVO (desarrolla ideas, datos, una postura o argumento). Si es expositivo/argumentativo, adapta el enfoque de cada pregunta reemplazando referencias a "personajes" y "trama" por "ideas", "argumentos" y "postura del autor", manteniendo el mismo tipo de razonamiento exigido por cada punto del nivel.
+
 ${audienceGuidelines}
 
 Prohibiciones estrictas en todas las dificultades:
 - NUNCA formules preguntas de memorización de datos aislados (fechas, cifras numéricas secundarias, nombres propios de objetos o sustantivos sueltos que se puedan responder escaneando una sola frase).
 - Cada pregunta debe requerir haber entendido el significado del pasaje.
 - El campo "correctAnswerText" DEBE ser una copia literal y exacta de una de las 4 opciones del arreglo "options".
+
+Reglas para las alternativas incorrectas (distractores):
+- Las 4 opciones de cada pregunta deben tener una extensión y nivel de detalle similares entre sí — evita que la respuesta correcta sea notoriamente más larga o detallada que las demás.
+- Las 3 alternativas incorrectas deben ser plausibles, no absurdas. Construye, en lo posible: una demasiado general o vaga, una que tergiverse un solo elemento del texto (un nombre, una causa, un orden de los hechos), y una que sería correcta en otro contexto pero no en este pasaje específico.
 
 Texto del capítulo:
 """
@@ -409,7 +424,7 @@ export async function generateChapterQuiz(
       }
 
       // Match correct answer by text and shuffle options
-      const validatedQuestions: QuizQuestion[] = parsed.slice(0, 5).map((q, index) => {
+      const validatedQuestions: QuizQuestion[] = parsed.slice(0, 8).map((q, index) => {
         const correctIndex = findCorrectIndex(q.options, q.correctAnswerText);
         const { options: shuffledOptions, correctOptionIndex: shuffledIndex } =
           shuffleOptionsAndIndex(q.options, correctIndex);
@@ -423,7 +438,7 @@ export async function generateChapterQuiz(
         };
       });
 
-      // Also shuffle the order of the 5 questions
+      // Also shuffle the order of the 8 questions
       return shuffleArray(validatedQuestions);
     } catch (err: unknown) {
       lastError = err;

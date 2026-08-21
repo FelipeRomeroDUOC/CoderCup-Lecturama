@@ -72,7 +72,7 @@ export async function deleteChapterQuiz(
 }
 
 /**
- * Retrieves or initializes the user progress for a chapter (defaults to 3 lives).
+ * Retrieves or initializes the user progress for a chapter (defaults to 4 lives).
  */
 export async function getUserChapterProgress(
   sessionId: string,
@@ -85,7 +85,7 @@ export async function getUserChapterProgress(
     userProgress = {
       sessionId,
       chapterId,
-      remainingLives: 3,
+      remainingLives: 4,
       isCompleted: false,
     };
     storage.progress.set(key, userProgress);
@@ -95,7 +95,7 @@ export async function getUserChapterProgress(
 }
 
 /**
- * Updates remaining lives for a specific user and chapter (clamped between 0 and 3).
+ * Updates remaining lives for a specific user and chapter (clamped between 0 and 4).
  */
 export async function updateUserLives(
   sessionId: string,
@@ -103,7 +103,7 @@ export async function updateUserLives(
   remainingLives: number
 ): Promise<ChapterProgress> {
   const progress = await getUserChapterProgress(sessionId, chapterId);
-  progress.remainingLives = Math.max(0, Math.min(3, remainingLives));
+  progress.remainingLives = Math.max(0, Math.min(4, remainingLives));
   return progress;
 }
 

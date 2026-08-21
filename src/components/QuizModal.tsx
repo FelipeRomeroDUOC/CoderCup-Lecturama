@@ -36,7 +36,7 @@ export default function QuizModal({
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
   const [selectedOptionIndex, setSelectedOptionIndex] = useState<number | null>(null);
   const [isAnswerSubmitted, setIsAnswerSubmitted] = useState<boolean>(false);
-  const [lives, setLives] = useState<number>(3);
+  const [lives, setLives] = useState<number>(4);
   const [isVictory, setIsVictory] = useState<boolean>(false);
   const [isGameOver, setIsGameOver] = useState<boolean>(false);
   const [correctAnswersCount, setCorrectAnswersCount] = useState<number>(0);
@@ -47,7 +47,7 @@ export default function QuizModal({
     setCurrentQuestionIndex(0);
     setSelectedOptionIndex(null);
     setIsAnswerSubmitted(false);
-    setLives(3);
+    setLives(4);
     setIsVictory(false);
     setIsGameOver(false);
     setCorrectAnswersCount(0);
@@ -73,7 +73,7 @@ export default function QuizModal({
       setCurrentQuestionIndex(savedSession.currentQuestionIndex || 0);
       setSelectedOptionIndex(savedSession.selectedOptionIndex ?? null);
       setIsAnswerSubmitted(Boolean(savedSession.isAnswerSubmitted));
-      setLives(typeof savedSession.lives === "number" ? savedSession.lives : 3);
+      setLives(typeof savedSession.lives === "number" ? savedSession.lives : 4);
       setCorrectAnswersCount(savedSession.correctAnswersCount || 0);
       setIsVictory(false);
       setIsGameOver(false);
@@ -202,7 +202,7 @@ export default function QuizModal({
             <span className="text-xs font-semibold text-rose-700 dark:text-rose-300 mr-1">
               Vidas:
             </span>
-            {[1, 2, 3].map((heart) => (
+            {[1, 2, 3, 4].map((heart) => (
               <span
                 key={heart}
                 className={`text-sm transition-transform duration-200 ${
