@@ -98,6 +98,48 @@ async function withTimeout<T>(
 }
 
 /**
+ * Safely extracts raw text from a Gemini API response.
+ * Filters out internal thought chunks and extracts non-thought JSON content parts.
+ */
+function extractResponseText(response: unknown): string {
+  if (!response || typeof response !== "object") return "";
+
+  const resp = response as {
+    text?: string;
+    candidates?: Array<{
+      content?: {
+        parts?: Array<{ text?: string; thought?: boolean }>;
+      };
+    }>;
+  };
+
+  if (typeof resp.text === "string" && resp.text.trim().length > 0) {
+    return resp.text.trim();
+  }
+
+  const parts = resp.candidates?.[0]?.content?.parts;
+  if (Array.isArray(parts)) {
+    // 1. Search for non-thought text parts first
+    const nonThoughtParts = parts.filter(
+      (p) => !p.thought && typeof p.text === "string" && p.text.trim().length > 0
+    );
+    if (nonThoughtParts.length > 0) {
+      return nonThoughtParts.map((p) => p.text).join("\n").trim();
+    }
+
+    // 2. Fallback to any text part
+    const anyTextParts = parts.filter(
+      (p) => typeof p.text === "string" && p.text.trim().length > 0
+    );
+    if (anyTextParts.length > 0) {
+      return anyTextParts.map((p) => p.text).join("\n").trim();
+    }
+  }
+
+  return "";
+}
+
+/**
  * Resilient JSON parser that strips markdown code fences and extracts raw JSON objects/arrays.
  */
 function extractJsonFromText<T>(rawText?: string): T {
@@ -311,16 +353,12 @@ Devuelve un JSON estrictamente con { "isPlayable": boolean }.`;
 
   for (const modelName of CLASSIFY_CANDIDATE_MODELS) {
     try {
-      const supportsThinking = modelName.toLowerCase().startsWith("gemini");
       const config: Record<string, unknown> = {
         responseMimeType: "application/json",
         responseSchema: playabilityResponseSchema,
         temperature: 0.1,
+        maxOutputTokens: 1024,
       };
-
-      if (supportsThinking) {
-        config.thinkingConfig = { thinkingBudget: 512 };
-      }
 
       const response = await withTimeout(
         ai.models.generateContent({
@@ -332,7 +370,7 @@ Devuelve un JSON estrictamente con { "isPlayable": boolean }.`;
         `Timeout de ${CLASSIFY_TIMEOUT_MS}ms en classify con modelo ${modelName}`
       );
 
-      const rawText = response.text?.trim();
+      const rawText = extractResponseText(response);
       if (!rawText) return true;
 
       try {
@@ -364,7 +402,7 @@ Devuelve un JSON estrictamente con { "isPlayable": boolean }.`;
 }
 
 /**
- * Generates 5 multiple-choice questions for a book chapter using Gemini AI.
+ * Generates 8 multiple-choice questions for a book chapter using Gemini AI.
  * Primary model: gemini-3.5-flash (22s), Fast Fallback model: gemini-3.5-flash-lite (10s).
  */
 export async function generateChapterQuiz(
@@ -391,16 +429,12 @@ export async function generateChapterQuiz(
 
   for (const modelName of QUESTIONS_CANDIDATE_MODELS) {
     try {
-      const supportsThinking = modelName.toLowerCase().startsWith("gemini");
       const config: Record<string, unknown> = {
         responseMimeType: "application/json",
         responseSchema: quizResponseSchema,
         temperature: difficulty === "basic" ? 0.6 : 0.75,
+        maxOutputTokens: 4096,
       };
-
-      if (supportsThinking) {
-        config.thinkingConfig = { thinkingBudget: 512 };
-      }
 
       const timeoutMs =
         modelName === QUESTIONS_PRIMARY_MODEL
@@ -417,7 +451,7 @@ export async function generateChapterQuiz(
         `Timeout de ${timeoutMs}ms en generateQuiz con modelo ${modelName}`
       );
 
-      const rawText = response.text?.trim();
+      const rawText = extractResponseText(response);
       if (!rawText) {
         throw new Error("Gemini devolvió una respuesta vacía.");
       }
