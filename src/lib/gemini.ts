@@ -99,40 +99,54 @@ async function withTimeout<T>(
 
 /**
  * Safely extracts raw text from a Gemini API response.
- * Filters out internal thought chunks and extracts non-thought JSON content parts.
+ * Filters out internal thought chunks, inspects all candidates and extracts non-thought JSON content.
  */
 function extractResponseText(response: unknown): string {
   if (!response || typeof response !== "object") return "";
 
-  const resp = response as {
-    text?: string;
-    candidates?: Array<{
-      content?: {
-        parts?: Array<{ text?: string; thought?: boolean }>;
-      };
-    }>;
-  };
+  const resp = response as any;
 
-  if (typeof resp.text === "string" && resp.text.trim().length > 0) {
-    return resp.text.trim();
+  // 1. Direct text property or getter function with error protection
+  try {
+    const directText = typeof resp.text === "function" ? resp.text() : resp.text;
+    if (typeof directText === "string" && directText.trim().length > 0) {
+      return directText.trim();
+    }
+  } catch {
+    // Ignore getter invocation issues
   }
 
-  const parts = resp.candidates?.[0]?.content?.parts;
-  if (Array.isArray(parts)) {
-    // 1. Search for non-thought text parts first
+  // 2. Iterate through candidates and parts
+  const candidate = resp.candidates?.[0];
+  if (!candidate) {
+    if (resp.promptFeedback?.blockReason) {
+      throw new Error(
+        `Contenido bloqueado por filtro de seguridad de Gemini: ${resp.promptFeedback.blockReason}`
+      );
+    }
+    return "";
+  }
+
+  if (candidate.finishReason && candidate.finishReason !== "STOP") {
+    console.warn(`[GEMINI] Finish reason no estándar: ${candidate.finishReason}`);
+  }
+
+  const parts = candidate.content?.parts;
+  if (Array.isArray(parts) && parts.length > 0) {
+    // 2.1 Search for non-thought text parts first
     const nonThoughtParts = parts.filter(
-      (p) => !p.thought && typeof p.text === "string" && p.text.trim().length > 0
+      (p: any) => !p.thought && typeof p.text === "string" && p.text.trim().length > 0
     );
     if (nonThoughtParts.length > 0) {
-      return nonThoughtParts.map((p) => p.text).join("\n").trim();
+      return nonThoughtParts.map((p: any) => p.text).join("\n").trim();
     }
 
-    // 2. Fallback to any text part
+    // 2.2 Fallback to any text part
     const anyTextParts = parts.filter(
-      (p) => typeof p.text === "string" && p.text.trim().length > 0
+      (p: any) => typeof p.text === "string" && p.text.trim().length > 0
     );
     if (anyTextParts.length > 0) {
-      return anyTextParts.map((p) => p.text).join("\n").trim();
+      return anyTextParts.map((p: any) => p.text).join("\n").trim();
     }
   }
 
@@ -141,6 +155,7 @@ function extractResponseText(response: unknown): string {
 
 /**
  * Resilient JSON parser that strips markdown code fences and extracts raw JSON objects/arrays.
+ * Prioritizes array matching for quiz question sets.
  */
 function extractJsonFromText<T>(rawText?: string): T {
   if (!rawText) {
@@ -158,20 +173,21 @@ function extractJsonFromText<T>(rawText?: string): T {
   try {
     return JSON.parse(cleaned) as T;
   } catch {
-    // 3. Extract outermost JSON object { ... } or array [ ... ]
-    const objectMatch = cleaned.match(/\{[\s\S]*\}/);
-    if (objectMatch) {
+    // 3. Extract outermost JSON array [ ... ] first for question lists
+    const arrayMatch = cleaned.match(/\[[\s\S]*\]/);
+    if (arrayMatch) {
       try {
-        return JSON.parse(objectMatch[0]) as T;
+        return JSON.parse(arrayMatch[0]) as T;
       } catch {
         // Continue
       }
     }
 
-    const arrayMatch = cleaned.match(/\[[\s\S]*\]/);
-    if (arrayMatch) {
+    // 4. Extract outermost JSON object { ... }
+    const objectMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (objectMatch) {
       try {
-        return JSON.parse(arrayMatch[0]) as T;
+        return JSON.parse(objectMatch[0]) as T;
       } catch {
         // Continue
       }
