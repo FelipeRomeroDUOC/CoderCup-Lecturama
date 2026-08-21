@@ -291,12 +291,11 @@ function shuffleOptionsAndIndex(
 }
 
 /**
- * Builds calibrated prompt tailored to the selected target audience / difficulty level.
+ * Builds calibrated system instruction tailored to the selected target audience / difficulty level.
  */
-function buildCalibratedPrompt(
-  chapterText: string,
-  chapterTitle?: string,
-  difficulty: QuizDifficulty = "medium"
+function buildCalibratedSystemInstruction(
+  difficulty: QuizDifficulty = "medium",
+  chapterTitle?: string
 ): string {
   let audienceGuidelines = "";
 
@@ -342,32 +341,26 @@ function buildCalibratedPrompt(
   }
 
   return `Eres un docente y pedagogo experto en comprensión lectora y gamificación.
-Tu objetivo es formular un desafío de COMPRENSIÓN LECTORA adaptado para el siguiente capítulo${
+Tu objetivo es formular un desafío de COMPRENSIÓN LECTORA de exactamente 8 preguntas adaptado para el capítulo${
     chapterTitle ? ` titulado "${chapterTitle}"` : ""
   }.
 
-Antes de generar las preguntas, determina si el capítulo es de tipo NARRATIVO/DRAMÁTICO (tiene personajes, trama, diálogos) o EXPOSITIVO/ARGUMENTATIVO (desarrolla ideas, datos, una postura o argumento). Si es expositivo/argumentativo, adapta el enfoque de cada pregunta reemplazando referencias a "personajes" y "trama" por "ideas", "argumentos" y "postura del autor", manteniendo el mismo tipo de razonamiento exigido por cada punto del nivel.
+Antes de generar las preguntas, determina si el texto es de tipo NARRATIVO/DRAMÁTICO (tiene personajes, trama, diálogos) o EXPOSITIVO/ARGUMENTATIVO (desarrolla ideas, datos, una postura o argumento). Si es expositivo/argumentativo, adapta el enfoque de cada pregunta reemplazando referencias a "personajes" y "trama" por "ideas", "argumentos" y "postura del autor", manteniendo el mismo tipo de razonamiento exigido por cada punto del nivel.
 
 ${audienceGuidelines}
 
-Prohibiciones estrictas en todas las dificultades:
-- NUNCA formules preguntas de memorización de datos aislados (fechas, cifras numéricas secundarias, nombres propios de objetos o sustantivos sueltos que se puedan responder escaneando una sola frase).
-- Cada pregunta debe exigir comprensión profunda del pasaje.
+Pautas estrictas para todas las dificultades:
+- Cada pregunta debe exigir comprensión profunda del significado del pasaje y evitar memorización de cifras o datos aislados sin relevancia temática.
 - El campo "correctAnswerText" DEBE ser una copia literal y exacta de una de las 4 opciones del arreglo "options".
-- NUNCA uses términos absolutos fáciles de descartar en las opciones incorrectas (como "nunca", "siempre", "totalmente", "ninguno", "nadie").
+- Evita opciones extremas con palabras como "nunca" o "siempre" que permitan descartar respuestas fácilmente.
 
-Reglas psicométricas obligatorias para las opciones y distractores:
-1. HOMOGENEIDAD TOTAL: Las 4 opciones de cada pregunta deben tener una longitud casi idéntica (mismo número aproximado de palabras y nivel de detalle) y comenzar con la misma estructura gramatical (mismo tiempo verbal o tipo de frase). Evita a toda costa que la respuesta correcta sea más larga, más elaborada, más matizada o más prudente que las demás.
-2. TRAMPAS Y DISTRACTORES DE ALTA VEROSIMILITUD: Cada una de las 3 alternativas incorrectas debe sonar totalmente convincente y legítima para quien leyó superficialmente:
-   - Distractor A (Trampa de Escaneo Literal): Emplea palabras clave o frases textuales reales del capítulo, pero atribuidas a otro momento, a una causa errónea o a otro personaje/idea.
-   - Distractor B (Causalidad Invertida o Causa Falsa): Plantea una consecuencia muy razonable, pero invierte el orden de causa-efecto o sustituye la motivación real por una secundaria.
-   - Distractor C (Sentido Común / Sobre-generalización): Afirma algo que parece moral o lógicamente verdadero en la vida real, pero que NO está respaldado por la evidencia específica del texto.
-3. SUTILEZA DE LA RESPUESTA CORRECTA: La opción correcta debe responder al núcleo de la pregunta de manera directa, precisa y sobria, sin utilizar un lenguaje llamativo ni dar pistas sintácticas.
-
-Texto del capítulo:
-"""
-${chapterText}
-"""`;
+Directrices psicométricas para las opciones y distractores:
+1. HOMOGENEIDAD TOTAL: Las 4 opciones de cada pregunta deben tener una longitud casi idéntica (mismo número aproximado de palabras y nivel de detalle) y comenzar con la misma estructura gramatical. Evita que la respuesta correcta sea más larga o más detallada que las demás.
+2. DISTRACTORES DE ALTA VEROSIMILITUD: Cada una de las 3 alternativas incorrectas debe sonar totalmente convincente y legítima para quien leyó con rapidez:
+   - Distractor A (Lectura Rápida): Emplea palabras clave reales del capítulo, pero atribuidas a otro momento, a una causa errónea o a otro personaje/idea.
+   - Distractor B (Causalidad Alterada): Plantea una consecuencia muy razonable, pero invierte la relación causa-efecto o confunde motivos.
+   - Distractor C (Sentido Común / Sobre-generalización): Afirma algo que parece lógico en la vida real, pero que no está respaldado directamente por el texto del capítulo.
+3. SUTILEZA DE LA RESPUESTA CORRECTA: La opción correcta debe responder al núcleo de la pregunta de manera directa, precisa y sobria.`;
 }
 
 /**
@@ -380,20 +373,16 @@ export async function classifyChapterPlayability(
 ): Promise<boolean> {
   const ai = getGeminiClient();
 
-  const prompt = `Eres un editor literario y clasificador pedagógico.
+  const systemInstruction = `Eres un editor literario y clasificador pedagógico.
 Tu tarea es determinar si el siguiente fragmento corresponde al CONTENIDO NARRATIVO/TEMÁTICO REAL de la obra (capítulo jugable con quiz) o si es simplemente PARATEXTO EDITORIAL / RELLENO (portada, dedicatoria, nota biográfica, advertencia editorial, agradecimientos, colofón, índice o anexo).
-
-Título de la sección: "${sectionTitle}"
-Texto inicial:
-"""
-${snippetText.slice(0, 1500)}
-"""
-
 Devuelve un JSON estrictamente con { "isPlayable": boolean }.`;
+
+  const payload = `Título de la sección: "${sectionTitle}"\nTexto inicial:\n"""\n${snippetText.slice(0, 1500)}\n"""`;
 
   for (const modelName of CLASSIFY_CANDIDATE_MODELS) {
     try {
       const config: Record<string, unknown> = {
+        systemInstruction,
         responseMimeType: "application/json",
         responseSchema: playabilityResponseSchema,
         temperature: 0.1,
@@ -404,7 +393,7 @@ Devuelve un JSON estrictamente con { "isPlayable": boolean }.`;
       const response = await withTimeout(
         ai.models.generateContent({
           model: modelName,
-          contents: prompt,
+          contents: payload,
           config: config as any,
         }),
         CLASSIFY_TIMEOUT_MS,
@@ -444,7 +433,7 @@ Devuelve un JSON estrictamente con { "isPlayable": boolean }.`;
 
 /**
  * Generates 8 multiple-choice questions for a book chapter using Gemini AI.
- * Primary model: gemini-3.5-flash (22s), Fast Fallback model: gemini-3.5-flash-lite (10s).
+ * Primary model: gemini-3.5-flash-lite (2.8s), Fallback model: gemini-3.6-flash.
  */
 export async function generateChapterQuiz(
   chapterText: string,
@@ -464,7 +453,8 @@ export async function generateChapterQuiz(
   const truncatedText =
     cleanText.length > 40000 ? cleanText.slice(0, 40000) + "..." : cleanText;
 
-  const prompt = buildCalibratedPrompt(truncatedText, chapterTitle, difficulty);
+  const systemInstruction = buildCalibratedSystemInstruction(difficulty, chapterTitle);
+  const chapterPayload = `Texto del capítulo a evaluar:\n"""\n${truncatedText}\n"""`;
 
   let lastError: unknown = null;
 
@@ -472,6 +462,7 @@ export async function generateChapterQuiz(
     try {
       const supportsThinking = modelName.toLowerCase().startsWith("gemini");
       const config: Record<string, unknown> = {
+        systemInstruction,
         responseMimeType: "application/json",
         responseSchema: quizResponseSchema,
         temperature: difficulty === "basic" ? 0.6 : 0.75,
@@ -491,7 +482,7 @@ export async function generateChapterQuiz(
       const response = await withTimeout(
         ai.models.generateContent({
           model: modelName,
-          contents: prompt,
+          contents: chapterPayload,
           config: config as any,
         }),
         timeoutMs,
