@@ -4,6 +4,7 @@ import { generateChapterQuiz } from "@/lib/gemini";
 import {
   getChapterQuiz,
   saveChapterQuiz,
+  deleteChapterQuiz,
   getUserChapterProgress,
 } from "@/lib/quizStore";
 import { QuizDifficulty } from "@/types/quiz";
@@ -30,7 +31,12 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { chapterText, chapterTitle, difficulty = "medium" } = body;
+    const {
+      chapterText,
+      chapterTitle,
+      difficulty = "medium",
+      forceFresh = false,
+    } = body;
     const validatedDifficulty: QuizDifficulty =
       difficulty === "basic" || difficulty === "advanced" ? difficulty : "medium";
 
@@ -39,21 +45,23 @@ export async function POST(
 
     const cacheKey = `${chapterId}_${validatedDifficulty}`;
 
-    // 1. Check if questions for this chapter and difficulty level are already cached
-    const existingQuestions = await getChapterQuiz(cacheKey);
-    if (existingQuestions && existingQuestions.length > 0) {
-      return NextResponse.json({
-        sessionId,
-        chapterId,
-        difficulty: validatedDifficulty,
-        isCached: true,
-        remainingLives: userProgress.remainingLives,
-        isCompleted: userProgress.isCompleted,
-        questions: existingQuestions,
-      });
+    // 1. Check if questions for this chapter and difficulty level are already cached (unless forceFresh is requested)
+    if (!forceFresh) {
+      const existingQuestions = await getChapterQuiz(cacheKey);
+      if (existingQuestions && existingQuestions.length > 0) {
+        return NextResponse.json({
+          sessionId,
+          chapterId,
+          difficulty: validatedDifficulty,
+          isCached: true,
+          remainingLives: userProgress.remainingLives,
+          isCompleted: userProgress.isCompleted,
+          questions: existingQuestions,
+        });
+      }
     }
 
-    // 2. If not cached yet, validate input chapterText
+    // 2. Validate input chapterText
     if (
       !chapterText ||
       typeof chapterText !== "string" ||
@@ -88,13 +96,44 @@ export async function POST(
       isCompleted: userProgress.isCompleted,
       questions,
     });
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("Error en POST /api/chapters/[id]/questions:", error);
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Error interno al generar las preguntas del capítulo.";
 
-    return NextResponse.json({ error: message }, { status: 500 });
+    const errorMessage =
+      error instanceof Error ? error.message : "Error interno al generar preguntas.";
+
+    return NextResponse.json(
+      { error: errorMessage },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: RouteContext
+) {
+  try {
+    const { id: chapterId } = await params;
+
+    if (!chapterId) {
+      return NextResponse.json(
+        { error: "El identificador del capítulo es requerido." },
+        { status: 400 }
+      );
+    }
+
+    await deleteChapterQuiz(chapterId);
+
+    return NextResponse.json({
+      success: true,
+      message: `Caché de quiz eliminada para el capítulo ${chapterId}`,
+    });
+  } catch (error) {
+    console.error("Error en DELETE /api/chapters/[id]/questions:", error);
+    return NextResponse.json(
+      { error: "Error al eliminar la caché del quiz." },
+      { status: 500 }
+    );
   }
 }

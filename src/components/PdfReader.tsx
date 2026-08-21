@@ -194,6 +194,9 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
 
         // Clear active session for this chapter so the new difficulty takes effect
         clearQuizSession(userId, file.name, activeChapter.id);
+        fetch(`/api/chapters/${encodeURIComponent(activeChapter.id)}/questions`, {
+          method: "DELETE",
+        }).catch((e) => console.warn("Error invalidating server quiz cache:", e));
         setQuizQuestions([]);
         setIsQuizOpen(false);
       }
@@ -706,6 +709,14 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
             refreshQuizSession();
           }}
           onAbandon={() => {
+            if (activeChapter) {
+              fetch(
+                `/api/chapters/${encodeURIComponent(activeChapter.id)}/questions`,
+                { method: "DELETE" }
+              ).catch((e) =>
+                console.warn("Error invalidating server quiz cache:", e)
+              );
+            }
             setQuizQuestions([]);
             setIsQuizOpen(false);
             refreshQuizSession();

@@ -54,6 +54,24 @@ export async function saveChapterQuiz(
 }
 
 /**
+ * Deletes cached questions for a specific chapter/difficulty cache key,
+ * or all difficulties starting with chapterId.
+ */
+export async function deleteChapterQuiz(
+  cacheKeyOrChapterId: string
+): Promise<void> {
+  // Delete exact match
+  storage.quizzes.delete(cacheKeyOrChapterId);
+
+  // Delete all keys prefixed with chapterId (e.g. `${chapterId}_basic`, `${chapterId}_medium`, etc.)
+  for (const key of storage.quizzes.keys()) {
+    if (key.startsWith(`${cacheKeyOrChapterId}_`)) {
+      storage.quizzes.delete(key);
+    }
+  }
+}
+
+/**
  * Retrieves or initializes the user progress for a chapter (defaults to 3 lives).
  */
 export async function getUserChapterProgress(
