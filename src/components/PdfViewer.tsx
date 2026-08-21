@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useState, useCallback, useMemo } from "react";
+import React, { useRef, useEffect, useState, useCallback, useMemo, memo } from "react";
 import { Page } from "react-pdf";
 import { isPreliminarySection } from "@/lib/chapterClassifier";
 import type { PDFDocumentProxy } from "pdfjs-dist";
@@ -25,7 +25,15 @@ interface PdfViewerProps {
   scrollToPage?: number;
 }
 
-export default function PdfViewer({
+const PageLoadingPlaceholder = memo(function PageLoadingPlaceholder() {
+  return (
+    <div className="flex items-center justify-center min-h-[450px] w-full bg-zinc-50 dark:bg-zinc-900 text-zinc-400 text-xs animate-pulse">
+      Cargando página...
+    </div>
+  );
+});
+
+function PdfViewerComponent({
   pdf,
   startPage,
   endPage,
@@ -46,30 +54,18 @@ export default function PdfViewer({
 }: PdfViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState<number>(750);
-  const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const isProgrammaticScroll = useRef<boolean>(false);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastReportedPageRef = useRef<number>(-1);
 
   const isPreliminary = isPreliminarySection(activeChapterTitle) || isNonPlayable;
 
-  // Register DOM elements per page
-  const handleMountElement = useCallback(
-    (pageNum: number, el: HTMLDivElement | null) => {
-      if (el) {
-        pageRefs.current.set(pageNum, el);
-      } else {
-        pageRefs.current.delete(pageNum);
-      }
-    },
-    []
-  );
-
-  // Adjust page width responsively without rapid updates
+  // Adjust page width responsively with hysteresis to avoid continuous layout shifts
   const updateWidth = useCallback(() => {
     if (containerRef.current) {
       const width = containerRef.current.clientWidth;
       const targetWidth = Math.min(Math.max(width - 32, 320), 850);
-      setContainerWidth((prev) => (Math.abs(prev - targetWidth) > 10 ? targetWidth : prev));
+      setContainerWidth((prev) => (Math.abs(prev - targetWidth) > 15 ? targetWidth : prev));
     }
   }, []);
 
@@ -81,8 +77,10 @@ export default function PdfViewer({
 
   // Handle explicit scroll commands
   useEffect(() => {
-    if (scrollToPage && pageRefs.current.has(scrollToPage)) {
-      const targetEl = pageRefs.current.get(scrollToPage);
+    if (scrollToPage && containerRef.current) {
+      const targetEl = containerRef.current.querySelector(
+        `[data-page-number="${scrollToPage}"]`
+      );
       if (targetEl) {
         isProgrammaticScroll.current = true;
         targetEl.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -97,6 +95,8 @@ export default function PdfViewer({
 
   // Track the most visible page in the viewport using IntersectionObserver
   useEffect(() => {
+    if (!containerRef.current) return;
+
     const observer = new IntersectionObserver(
       (entries) => {
         if (isProgrammaticScroll.current) return;
@@ -112,7 +112,8 @@ export default function PdfViewer({
           }
         });
 
-        if (mostVisiblePage > 0) {
+        if (mostVisiblePage > 0 && mostVisiblePage !== lastReportedPageRef.current) {
+          lastReportedPageRef.current = mostVisiblePage;
           onVisiblePageChange(mostVisiblePage);
         }
       },
@@ -122,8 +123,8 @@ export default function PdfViewer({
       }
     );
 
-    const currentMap = pageRefs.current;
-    currentMap.forEach((el) => observer.observe(el));
+    const elements = containerRef.current.querySelectorAll("[data-page-number]");
+    elements.forEach((el) => observer.observe(el));
 
     return () => {
       observer.disconnect();
@@ -139,6 +140,8 @@ export default function PdfViewer({
     return list;
   }, [startPage, endPage]);
 
+  const calculatedPageWidth = Math.round(containerWidth * scale);
+
   return (
     <div
       ref={containerRef}
@@ -148,10 +151,9 @@ export default function PdfViewer({
       {pageNumbers.map((pageNum) => (
         <div
           key={pageNum}
-          ref={(el) => handleMountElement(pageNum, el)}
           data-page-number={pageNum}
           className="relative shadow-xl rounded-lg overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-white transition-shadow duration-300 hover:shadow-2xl"
-          style={{ width: `${containerWidth * scale}px` }}
+          style={{ width: `${calculatedPageWidth}px` }}
         >
           {/* Subtle Page Number Indicator on Top */}
           <div className="absolute top-2 right-3 z-10 text-[10px] font-medium text-zinc-400 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm px-2 py-0.5 rounded shadow-sm">
@@ -160,20 +162,10 @@ export default function PdfViewer({
 
           <Page
             pageNumber={pageNum}
-            width={containerWidth * scale}
+            width={calculatedPageWidth}
             renderTextLayer={true}
             renderAnnotationLayer={true}
-            loading={
-              <div
-                className="flex items-center justify-center bg-zinc-50 dark:bg-zinc-900 text-zinc-400 text-xs animate-pulse"
-                style={{
-                  width: `${containerWidth * scale}px`,
-                  height: `${(containerWidth * scale) * 1.414}px`,
-                }}
-              >
-                Cargando página {pageNum}...
-              </div>
-            }
+            loading={<PageLoadingPlaceholder />}
           />
         </div>
       ))}
@@ -269,3 +261,5 @@ export default function PdfViewer({
     </div>
   );
 }
+
+export default memo(PdfViewerComponent);
