@@ -6,7 +6,8 @@
 ![Estado](https://img.shields.io/badge/estado-beta%20pública-emerald?style=for-the-badge)
 ![Next.js](https://img.shields.io/badge/Next.js-16.3-black?style=for-the-badge&logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)
-![Gemini AI](https://img.shields.io/badge/Google%20Gemini-3.5%20Flash-4285F4?style=for-the-badge&logo=google)
+![Google Antigravity](https://img.shields.io/badge/IDE-Google%20Antigravity-4285F4?style=for-the-badge)
+![Gemini 3.7 Flash](https://img.shields.io/badge/AI%20Pair-Gemini%203.7%20Flash-8E75B2?style=for-the-badge)
 ![Despliegue](https://img.shields.io/badge/Despliegue-Vercel-black?style=for-the-badge&logo=vercel)
 
 **La plataforma que convierte la lectura en aprendizaje entretenido, donde cada libro esconde un reto.**
@@ -145,6 +146,12 @@ Abre tu navegador en [http://localhost:3000](http://localhost:3000) para ver la 
 ├── CHANGELOG.md              # Registro histórico de versiones
 └── package.json
 ```
+
+---
+
+## 🤖 Desarrollo y Asistencia de IA
+
+Este proyecto fue desarrollado íntegramente utilizando **Google Antigravity IDE** y asistido por el modelo de lenguaje **Gemini 3.7 Flash** (Google DeepMind) para la planificación arquitectónica, programación en pareja (*pair programming*), diseño de sistemas de resiliencia y documentación técnica de tareas.
 
 ---
 
