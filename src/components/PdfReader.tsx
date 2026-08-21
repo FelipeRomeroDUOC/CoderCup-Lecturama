@@ -88,8 +88,16 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
     }
   }, []);
 
-  // Memoize stable file reference
-  const stableFile = useMemo(() => file, [file]);
+  // Create a stable Blob URL for the file to prevent FileReader churn in react-pdf
+  const [fileUrl, setFileUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const url = URL.createObjectURL(file);
+    setFileUrl(url);
+    return () => {
+      URL.revokeObjectURL(url);
+    };
+  }, [file]);
 
   const {
     chapters,
@@ -98,11 +106,16 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
     extractChapters,
   } = useChapters();
 
+  const extractedPdfRef = useRef<PDFDocumentProxy | null>(null);
+
   const handleDocumentLoadSuccess = useCallback(
     (pdf: PDFDocumentProxy) => {
       setPdfDocument((prev) => (prev === pdf ? prev : pdf));
       setNumPages((prev) => (prev === pdf.numPages ? prev : pdf.numPages));
-      extractChapters(pdf, pdf.numPages);
+      if (extractedPdfRef.current !== pdf) {
+        extractedPdfRef.current = pdf;
+        extractChapters(pdf, pdf.numPages);
+      }
     },
     [extractChapters]
   );
@@ -488,6 +501,7 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
       resetProgress();
       clearAllBookSessions(userId, file.name);
       evaluatedChapterIdsRef.current.clear();
+      extractedPdfRef.current = null;
       setNonPlayableChapterIds([]);
       setQuizQuestions([]);
       setIsQuizOpen(false);
@@ -650,39 +664,41 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
             </div>
           )}
 
-          <Document
-            file={stableFile}
-            onLoadSuccess={handleDocumentLoadSuccess}
-            loading={DocumentLoadingFallback}
-            error={DocumentErrorFallback}
-          >
-            {pdfDocument && (
-              <main className="flex-1 pb-24">
-                <PdfViewer
-                  pdf={pdfDocument}
-                  startPage={startPage}
-                  endPage={endPage}
-                  onVisiblePageChange={handleVisiblePageChange}
-                  scale={scale}
-                  activeChapterTitle={activeChapter?.title}
-                  hasNextChapter={
-                    currentChapterIndex >= 0 &&
-                    currentChapterIndex < flattenedChapters.length - 1
-                  }
-                  hasPrevChapter={currentChapterIndex > 0}
-                  isCurrentChapterCompleted={isCurrentCompleted}
-                  isNextChapterUnlocked={isNextUnlocked}
-                  isNonPlayable={isCurrentNonPlayable}
-                  hasActiveQuizSession={hasActiveQuizSession}
-                  quizSessionInfo={quizSessionInfo}
-                  onNextChapter={handleNextChapter}
-                  onPrevChapter={handlePrevChapter}
-                  onStartQuiz={handleStartQuiz}
-                  scrollToPage={scrollToPage}
-                />
-              </main>
-            )}
-          </Document>
+          {fileUrl && (
+            <Document
+              file={fileUrl}
+              onLoadSuccess={handleDocumentLoadSuccess}
+              loading={DocumentLoadingFallback}
+              error={DocumentErrorFallback}
+            >
+              {pdfDocument && (
+                <main className="flex-1 pb-24">
+                  <PdfViewer
+                    pdf={pdfDocument}
+                    startPage={startPage}
+                    endPage={endPage}
+                    onVisiblePageChange={handleVisiblePageChange}
+                    scale={scale}
+                    activeChapterTitle={activeChapter?.title}
+                    hasNextChapter={
+                      currentChapterIndex >= 0 &&
+                      currentChapterIndex < flattenedChapters.length - 1
+                    }
+                    hasPrevChapter={currentChapterIndex > 0}
+                    isCurrentChapterCompleted={isCurrentCompleted}
+                    isNextChapterUnlocked={isNextUnlocked}
+                    isNonPlayable={isCurrentNonPlayable}
+                    hasActiveQuizSession={hasActiveQuizSession}
+                    quizSessionInfo={quizSessionInfo}
+                    onNextChapter={handleNextChapter}
+                    onPrevChapter={handlePrevChapter}
+                    onStartQuiz={handleStartQuiz}
+                    scrollToPage={scrollToPage}
+                  />
+                </main>
+              )}
+            </Document>
+          )}
 
           {/* Sticky Bottom Navigation Bar */}
           {pdfDocument && (
