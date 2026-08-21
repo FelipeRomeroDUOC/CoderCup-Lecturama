@@ -156,11 +156,17 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
   const startPage = activeChapter ? activeChapter.startPage : 1;
   const endPage = activeChapter ? activeChapter.endPage : numPages;
 
+  // Dynamic version counter to force instant re-evaluation of localStorage quiz state
+  const [quizSessionVersion, setQuizSessionVersion] = useState<number>(0);
+  const refreshQuizSession = useCallback(() => {
+    setQuizSessionVersion((prev) => prev + 1);
+  }, []);
+
   // Check if active chapter has an in-progress quiz session
   const activeQuizSession = useMemo<ActiveQuizSession | null>(() => {
     if (!activeChapter) return null;
     return getQuizSession(userId, file.name, activeChapter.id);
-  }, [userId, file.name, activeChapter, isQuizOpen]);
+  }, [userId, file.name, activeChapter, isQuizOpen, quizSessionVersion, difficulty]);
 
   const hasActiveQuizSession = Boolean(activeQuizSession);
 
@@ -198,8 +204,9 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
       } catch {
         // Ignore
       }
+      refreshQuizSession();
     },
-    [difficulty, activeChapter, hasActiveQuizSession, userId, file.name]
+    [difficulty, activeChapter, hasActiveQuizSession, userId, file.name, refreshQuizSession]
   );
 
   // Hybrid filler detection: automatically checks active chapter if not already classified
@@ -469,6 +476,7 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
       setQuizQuestions([]);
       setIsQuizOpen(false);
       setQuizError(null);
+      refreshQuizSession();
 
       // Re-trigger chapter extraction and classification from scratch
       if (pdfDocument) {
@@ -484,7 +492,16 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
     } catch (err) {
       console.error("Error al reiniciar progreso dev:", err);
     }
-  }, [resetProgress, userId, file.name, pdfDocument, numPages, extractChapters, flattenedChapters]);
+  }, [
+    resetProgress,
+    userId,
+    file.name,
+    pdfDocument,
+    numPages,
+    extractChapters,
+    flattenedChapters,
+    refreshQuizSession,
+  ]);
 
   const zoomIn = () => setScale((prev) => Math.min(prev + 0.15, 2.0));
   const zoomOut = () => setScale((prev) => Math.max(prev - 0.15, 0.6));
@@ -684,13 +701,24 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
       {activeChapter && (
         <QuizModal
           isOpen={isQuizOpen}
-          onClose={() => setIsQuizOpen(false)}
+          onClose={() => {
+            setIsQuizOpen(false);
+            refreshQuizSession();
+          }}
+          onAbandon={() => {
+            setQuizQuestions([]);
+            setIsQuizOpen(false);
+            refreshQuizSession();
+          }}
           chapterId={activeChapter.id}
           chapterTitle={activeChapter.title}
           bookTitle={file.name}
           userId={userId}
           questions={quizQuestions}
-          onCompleteSuccess={handleQuizSuccess}
+          onCompleteSuccess={() => {
+            handleQuizSuccess();
+            refreshQuizSession();
+          }}
           onAdvanceToNextChapter={handleAdvanceToNextChapter}
         />
       )}

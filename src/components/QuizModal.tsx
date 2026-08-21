@@ -11,6 +11,7 @@ import {
 interface QuizModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onAbandon?: () => void;
   chapterId: string;
   chapterTitle: string;
   bookTitle?: string;
@@ -23,6 +24,7 @@ interface QuizModalProps {
 export default function QuizModal({
   isOpen,
   onClose,
+  onAbandon,
   chapterId,
   chapterTitle,
   bookTitle = "default_book",
@@ -173,7 +175,11 @@ export default function QuizModal({
     ) {
       clearQuizSession(userId, bookTitle, chapterId);
       resetQuiz();
-      onClose();
+      if (onAbandon) {
+        onAbandon();
+      } else {
+        onClose();
+      }
     }
   };
 
