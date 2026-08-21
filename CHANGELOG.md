@@ -7,6 +7,21 @@ y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ---
 
+## [1.0.0-beta.2] - 2026-08-21
+
+Segunda versión beta enfocada en estabilidad, concurrencia de renderizado y fluidez en la navegación.
+
+### 🛡️ Corregido (Fixed)
+- **Bucle de Concurrencia en `react-pdf` (`Page.useEffect.loadPage`)**:
+  - Se erradicó el error `Maximum update depth exceeded` reemplazando los elementos JSX inline de carga por un componente estático (`PageLoadingPlaceholder`).
+  - Se memorizó el componente `PdfViewer` con `React.memo` para aislar el renderizado del lienzo Canvas de actualizaciones de estado auxiliares del contenedor principal.
+  - Se optimizó el `IntersectionObserver` con la guarda `lastReportedPageRef` para evitar llamadas redundantes a `setCurrentPage`.
+- **Estabilización de Clasificación de Capítulos**:
+  - Implementación de `evaluatedChapterIdsRef` en `PdfReader` para garantizar que ningún capítulo sea evaluado más de una vez por sesión.
+  - Uso de referencias inmutables para `isChapterUnlockedRef` eliminando ciclos de re-renderizado al pasar de página.
+
+---
+
 ## [1.0.0-beta.1] - 2026-08-21 (Beta Pública)
 
 Primera versión pública preliminar de **LECTURAMA**, el lector de PDFs gamificado con generación inteligente de desafíos pedagógicos mediante IA.
