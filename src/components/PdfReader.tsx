@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { Document, pdfjs } from "react-pdf";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { useChapters } from "@/hooks/useChapters";
@@ -212,11 +212,23 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
     [difficulty, activeChapter, hasActiveQuizSession, userId, file.name, refreshQuizSession]
   );
 
+  // References to prevent re-evaluation loops and stabilize effects
+  const evaluatedChapterIdsRef = useRef<Set<string>>(new Set());
+  const isChapterUnlockedRef = useRef(isChapterUnlocked);
+  isChapterUnlockedRef.current = isChapterUnlocked;
+
   // Hybrid filler detection: automatically checks active chapter if not already classified
   useEffect(() => {
     if (!pdfDocument || !activeChapter || currentChapterIndex < 0) return;
 
-    if (nonPlayableChapterIds.includes(activeChapter.id)) return;
+    if (
+      nonPlayableChapterIds.includes(activeChapter.id) ||
+      evaluatedChapterIdsRef.current.has(activeChapter.id)
+    ) {
+      return;
+    }
+
+    evaluatedChapterIdsRef.current.add(activeChapter.id);
 
     let isMounted = true;
 
@@ -307,11 +319,11 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
     );
 
     if (matchedChapter && matchedChapter.id !== activeChapterId) {
-      if (isChapterUnlocked(matchedChapter.id)) {
+      if (isChapterUnlockedRef.current(matchedChapter.id)) {
         setActiveChapterId(matchedChapter.id);
       }
     }
-  }, [currentPage, flattenedChapters, activeChapterId, isChapterUnlocked]);
+  }, [currentPage, flattenedChapters, activeChapterId]);
 
   // Chapter Navigation Handlers
   const handleSelectChapter = useCallback(
@@ -475,6 +487,7 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
       await fetch("/api/dev/reset", { method: "POST" });
       resetProgress();
       clearAllBookSessions(userId, file.name);
+      evaluatedChapterIdsRef.current.clear();
       setNonPlayableChapterIds([]);
       setQuizQuestions([]);
       setIsQuizOpen(false);

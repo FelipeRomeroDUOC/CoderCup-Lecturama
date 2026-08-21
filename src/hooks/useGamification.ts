@@ -49,7 +49,7 @@ export function useGamification({
 
   // Update initial unlocked index when chapters load
   useEffect(() => {
-    setMaxUnlockedIndex((prev) => Math.max(prev, firstPlayableIndex));
+    setMaxUnlockedIndex((prev) => (firstPlayableIndex > prev ? firstPlayableIndex : prev));
   }, [firstPlayableIndex]);
 
   // Load saved progress from localStorage on mount or when storageKey changes
