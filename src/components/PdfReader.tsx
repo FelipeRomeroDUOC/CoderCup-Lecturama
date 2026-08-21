@@ -6,7 +6,7 @@ import type { PDFDocumentProxy } from "pdfjs-dist";
 import { useChapters } from "@/hooks/useChapters";
 import { useGamification } from "@/hooks/useGamification";
 import { extractChapterText } from "@/lib/pdfTextExtractor";
-import { classifySectionLocally } from "@/lib/chapterClassifier";
+import { classifySectionLocally, isPreliminarySection } from "@/lib/chapterClassifier";
 import { getClientUserId } from "@/lib/clientSession";
 import {
   getQuizSession,
@@ -322,21 +322,6 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
     isChapterCompleted,
     markChapterCompleted,
   ]);
-
-  // Sync active chapter when page changes
-  useEffect(() => {
-    if (flattenedChapters.length === 0) return;
-
-    const matchedChapter = flattenedChapters.find(
-      (c) => currentPage >= c.startPage && currentPage <= c.endPage
-    );
-
-    if (matchedChapter && matchedChapter.id !== activeChapterId) {
-      if (isChapterUnlockedRef.current(matchedChapter.id)) {
-        setActiveChapterId(matchedChapter.id);
-      }
-    }
-  }, [currentPage, flattenedChapters, activeChapterId]);
 
   // Chapter Navigation Handlers
   const handleSelectChapter = useCallback(
@@ -685,9 +670,24 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
                       currentChapterIndex < flattenedChapters.length - 1
                     }
                     hasPrevChapter={currentChapterIndex > 0}
-                    isCurrentChapterCompleted={isCurrentCompleted}
-                    isNextChapterUnlocked={isNextUnlocked}
-                    isNonPlayable={isCurrentNonPlayable}
+                    isCurrentChapterCompleted={
+                      activeChapter ? isChapterCompleted(activeChapter.id) : false
+                    }
+                    isNextChapterUnlocked={
+                      currentChapterIndex >= 0 &&
+                      currentChapterIndex < flattenedChapters.length - 1
+                        ? isChapterUnlocked(
+                            flattenedChapters[currentChapterIndex + 1].id,
+                            currentChapterIndex + 1
+                          )
+                        : false
+                    }
+                    isNonPlayable={
+                      activeChapter
+                        ? isPreliminarySection(activeChapter.title) ||
+                          nonPlayableChapterIds.includes(activeChapter.id)
+                        : false
+                    }
                     hasActiveQuizSession={hasActiveQuizSession}
                     quizSessionInfo={quizSessionInfo}
                     onNextChapter={handleNextChapter}
