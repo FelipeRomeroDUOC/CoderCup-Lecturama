@@ -96,6 +96,27 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
     }
   }, []);
 
+  // Read PDF binary data into in-memory ArrayBuffer to guarantee zero network fetches or 'File not found' errors
+  const [pdfData, setPdfData] = useState<ArrayBuffer | null>(null);
+
+  useEffect(() => {
+    let isCancelled = false;
+    file
+      .arrayBuffer()
+      .then((buffer) => {
+        if (!isCancelled) {
+          setPdfData(buffer);
+        }
+      })
+      .catch((err) => {
+        console.warn("Could not read PDF arrayBuffer:", err);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [file]);
+
   // Update book last read page in IndexedDB
   useEffect(() => {
     if (currentPage > 0) {
@@ -726,12 +747,13 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
             </div>
           )}
 
-          <Document
-            file={file}
-            onLoadSuccess={handleDocumentLoadSuccess}
-            loading={DocumentLoadingFallback}
-            error={DocumentErrorFallback}
-          >
+          {pdfData ? (
+            <Document
+              file={{ data: pdfData }}
+              onLoadSuccess={handleDocumentLoadSuccess}
+              loading={DocumentLoadingFallback}
+              error={DocumentErrorFallback}
+            >
               {pdfDocument && (
                 <main className="flex-1 pb-24">
                   {isLoadingChapters || (chapters.length === 0 && hasOutline === null) ? (
@@ -786,6 +808,9 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
                 </main>
               )}
             </Document>
+          ) : (
+            DocumentLoadingFallback
+          )}
 
           {/* Sticky Bottom Navigation Bar */}
           {pdfDocument && (
