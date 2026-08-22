@@ -138,6 +138,9 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
     return list;
   }, [chapters]);
 
+  // Dev tools state
+  const [devUnlockAll, setDevUnlockAll] = useState<boolean>(false);
+
   // Gamification: level unlocking & chapter completion state
   const {
     isChapterCompleted,
@@ -148,6 +151,7 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
     chapters: flattenedChapters,
     bookTitle: file.name,
     nonPlayableChapterIds,
+    devUnlockAll,
   });
 
   // Filter playable chapters vs fillers
@@ -593,18 +597,36 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
           </select>
         </div>
 
-        {/* Right Controls: Developer Reset Tool & Zoom */}
+        {/* Right Controls: Developer Tools & Zoom */}
         <div className="flex items-center gap-2">
           {process.env.NODE_ENV === "development" && (
-            <button
-              type="button"
-              onClick={handleDevReset}
-              className="px-2.5 py-1.5 text-xs font-bold rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 transition-colors flex items-center gap-1 cursor-pointer"
-              title="[DEV] Reiniciar todos los niveles, bloquearlos nuevamente y vaciar caché del servidor"
-            >
-              <span>🛠️</span>
-              <span className="hidden sm:inline">Reset [DEV]</span>
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setDevUnlockAll((prev) => !prev)}
+                className={`px-2.5 py-1.5 text-xs font-bold rounded-xl border transition-colors flex items-center gap-1 cursor-pointer ${
+                  devUnlockAll
+                    ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/40 shadow-xs"
+                    : "bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-400 border-zinc-300 dark:border-zinc-700"
+                }`}
+                title="[DEV] Alternar desbloqueo total de capítulos para pruebas de lectura y quizes"
+              >
+                <span>{devUnlockAll ? "🔓" : "🔒"}</span>
+                <span className="hidden sm:inline">
+                  {devUnlockAll ? "Desbloqueado [DEV]" : "Bloqueo [DEV]"}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDevReset}
+                className="px-2.5 py-1.5 text-xs font-bold rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 transition-colors flex items-center gap-1 cursor-pointer"
+                title="[DEV] Reiniciar todos los niveles, bloquearlos nuevamente y vaciar caché del servidor"
+              >
+                <span>🛠️</span>
+                <span className="hidden sm:inline">Reset [DEV]</span>
+              </button>
+            </div>
           )}
 
           <div className="hidden sm:flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 rounded-xl p-1 border border-zinc-200 dark:border-zinc-700 text-xs">

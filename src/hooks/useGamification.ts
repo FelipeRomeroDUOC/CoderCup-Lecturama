@@ -9,12 +9,14 @@ interface UseGamificationProps {
   chapters: Chapter[];
   bookTitle?: string;
   nonPlayableChapterIds?: string[];
+  devUnlockAll?: boolean;
 }
 
 export function useGamification({
   chapters,
   bookTitle = "default_book",
   nonPlayableChapterIds = [],
+  devUnlockAll = false,
 }: UseGamificationProps) {
   const [userId, setUserId] = useState<string>("default_user");
 
@@ -97,6 +99,9 @@ export function useGamification({
 
   const isChapterUnlocked = useCallback(
     (chapterId: string, index?: number): boolean => {
+      // Dev bypass: if developer unlocked all chapters, return true
+      if (devUnlockAll) return true;
+
       // If no chapters, everything is open
       if (chapters.length === 0) return true;
 
@@ -127,7 +132,7 @@ export function useGamification({
 
       return false;
     },
-    [chapters, maxUnlockedIndex, completedChapterIds, isFiller]
+    [devUnlockAll, chapters, maxUnlockedIndex, completedChapterIds, isFiller]
   );
 
   const markChapterCompleted = useCallback(
