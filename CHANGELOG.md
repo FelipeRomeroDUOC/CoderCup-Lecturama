@@ -7,7 +7,32 @@ y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ---
 
-## [1.0.0-beta.3] - 2026-08-21
+## [1.0.0-beta.6] - 2026-08-22
+
+Versión mayor que introduce la persistencia local de manuscritos, la Estantería de Libros interactiva en 3D y la celebración de libros completados.
+
+### ✨ Añadido (Added)
+- **Mi Estantería de Libros (Biblioteca Persistente en IndexedDB)**:
+  - Almacenamiento local de libros completos en `IndexedDB` (`lecturama_library_db`).
+  - Renderizado de portadas 3D a partir de la primera página del manuscrito con textura de lomo y animación en gravedad cero.
+  - Detección multinivel de título y autor (metadatos, portada y nombre de archivo).
+  - Barra de progreso parcial con colores de semáforo (Verde, Amarillo, Rojo) sobre fondo negro y dorado al 100%.
+  - Insignias de trofeo `🏆 X/Y ¡Completado!` y visualización uniforme `X/Y` quizes.
+  - Opción para eliminar obras de la estantería.
+- **Celebración de Libro Conquistado ("Maestría Lectora Alcanzada")**:
+  - Modal festivo con medalla y frase pedagógica motivacional para inspirar la lectura de un nuevo manuscrito.
+- **Herramienta de Desarrollo (Dev Tools)**:
+  - Toggle en cabecera para desbloqueo libre de capítulos para pruebas rápidas (solo en desarrollo).
+
+### 🛡️ Corregido (Fixed)
+- **Carga Inmutable de PDFs y Desacoplamiento de Workers**:
+  - Lectura binaria nativa a `Uint8Array` en memoria RAM directa (`fileSource`), eliminando condiciones de carrera, errores de worker, `404 File not found` y `detached ArrayBuffer`.
+- **Transacciones de IndexedDB**:
+  - Manejo robusto del ciclo de vida de transacciones y fusión segura (*merge*) de registros.
+
+---
+
+## [1.0.0-beta.5] - 2026-08-22
 
 Tercera versión beta que elimina de raíz la sobrecarga concurrente durante la apertura de PDFs y estabiliza la gamificación.
 

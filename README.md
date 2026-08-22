@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Versión](https://img.shields.io/badge/versión-1.0.0--beta.5-amber?style=for-the-badge)
+![Versión](https://img.shields.io/badge/versión-1.0.0--beta.6-amber?style=for-the-badge)
 ![Estado](https://img.shields.io/badge/estado-beta%20pública-emerald?style=for-the-badge)
 ![Next.js](https://img.shields.io/badge/Next.js-16.3-black?style=for-the-badge&logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)
@@ -26,13 +26,21 @@ El libro se divide automáticamente en capítulos que funcionan como **niveles p
 
 ## ✨ Características Principales
 
+- 📚 **Mi Estantería de Libros (Biblioteca Persistente en IndexedDB)**:
+  - **Tomos de libros en 3D**: Portadas reales extraídas de la primera página con textura de lomo y animación de gravedad cero al posar el cursor (*hover*).
+  - **Detección multinivel de Título y Autor**: Extracción inteligente desde metadatos PDF, líneas de portada y patrones en el nombre de archivo.
+  - **Barra de Progreso Semáforo con Fondo Negro**: Relleno proporcional en colores de semáforo (Verde, Amarillo, Rojo) y dorado brillante para obras superadas al 100%.
+  - **Insignia de Trofeo `🏆 X/Y ¡Completado!`**: Reconocimiento visual inmediato del estado de avance en formato `X/Y` quizes en todos los tomos.
+  - **Persistencia local completa**: Los archivos PDF se conservan en la base de datos `IndexedDB` del navegador para reanudar la lectura sin volver a subirlos.
+- 🏆 **Celebración de Libro Conquistado ("Maestría Lectora Alcanzada")**:
+  - Modal festivo al completar el 100% de los quizes de una obra, con medalla dorada e incentivo pedagógico personalizado para inspirar al usuario a comenzar un nuevo libro.
 - 🏛️ **Identidad Visual "Manuscrito Vivo" (Diseñada con Google Stitch)**:
   - **Fondo animado en gravedad cero**: Libros flotantes, plumas, pergaminos y destellos sobre grafito cálido (`#0E0D0C`) con halos dorados.
   - **Atril de lectura táctil**: Dropzone con resplandor dorado ambiental (`gold-glow`) y micro-animaciones.
   - **Escritorio de lectura inmersivo**: Visor con iluminación de lámpara y hojas con sombra multicapa envolvente.
   - **Isotipo Oficial SVG**: Monograma de libro abierto con halo de conocimiento.
 - 📖 **Visor Continuo de PDFs**:
-  - Lectura vertical fluida con carga optimizada página por página.
+  - Lectura vertical fluida con carga optimizada página por página mediante `Uint8Array` en memoria RAM directa (inmune a fallos de red local).
   - Totalmente adaptado para pantallas móviles, tablets y ordenadores de escritorio.
 - 🎯 **Gamificación por Niveles y Bloqueo de Capítulos**:
   - Los capítulos siguientes permanecen bloqueados (`🔒`) hasta superar el quiz del nivel actual.
