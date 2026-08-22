@@ -80,15 +80,20 @@ export function useGamification({
   const saveProgress = useCallback(
     (completedIds: string[], unlockedIndex: number) => {
       try {
+        const sanitizedCompleted = completedIds.filter((id) => {
+          const chapter = chapters.find((c) => c.id === id);
+          return chapter ? !isFiller(chapter) : true;
+        });
+
         const isAllDone =
           totalPlayableChapters > 0
-            ? completedIds.length >= totalPlayableChapters
+            ? sanitizedCompleted.length >= totalPlayableChapters
             : false;
 
         localStorage.setItem(
           storageKey,
           JSON.stringify({
-            completedChapterIds: completedIds,
+            completedChapterIds: sanitizedCompleted,
             maxUnlockedIndex: unlockedIndex,
             totalPlayableChapters,
             isAllCompleted: isAllDone,
@@ -98,8 +103,23 @@ export function useGamification({
         // Ignore storage write errors
       }
     },
-    [storageKey, totalPlayableChapters]
+    [storageKey, totalPlayableChapters, chapters, isFiller]
   );
+
+  // Auto-purge any preliminary/filler section IDs that might have leaked into completedChapterIds
+  useEffect(() => {
+    if (chapters.length > 0 && completedChapterIds.length > 0) {
+      const validCompleted = completedChapterIds.filter((id) => {
+        const chapter = chapters.find((c) => c.id === id);
+        return chapter ? !isFiller(chapter) : true;
+      });
+
+      if (validCompleted.length !== completedChapterIds.length) {
+        setCompletedChapterIds(validCompleted);
+        saveProgress(validCompleted, maxUnlockedIndex);
+      }
+    }
+  }, [chapters, isFiller, completedChapterIds, maxUnlockedIndex, saveProgress]);
 
   const isChapterCompleted = useCallback(
     (chapterId: string): boolean => {
