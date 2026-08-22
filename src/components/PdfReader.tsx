@@ -49,18 +49,17 @@ function readBlobToUint8Array(blob: Blob): Promise<Uint8Array> {
         }
       };
       reader.onerror = () => {
-        blob
-          .arrayBuffer()
-          .then((buf) => resolve(new Uint8Array(buf)))
-          .catch(reject);
+        reject(reader.error || new Error("Error reading file with FileReader"));
       };
       reader.onabort = () => {
-        blob
-          .arrayBuffer()
-          .then((buf) => resolve(new Uint8Array(buf)))
-          .catch(reject);
+        const abortErr = new DOMException("The operation was aborted.", "AbortError");
+        reject(abortErr);
       };
-      reader.readAsArrayBuffer(blob);
+      try {
+        reader.readAsArrayBuffer(blob);
+      } catch (err) {
+        reject(err);
+      }
       return;
     }
 
@@ -142,8 +141,11 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
           setFileSource({ data });
         }
       })
-      .catch((err) => {
-        console.warn("Could not read PDF bytes:", err);
+      .catch((err: unknown) => {
+        const error = err as { name?: string } | undefined;
+        if (isMounted && error?.name !== "AbortError") {
+          console.warn("Could not read PDF bytes:", err);
+        }
       });
 
     return () => {
