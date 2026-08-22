@@ -192,8 +192,9 @@ export default function BookLibraryShelf({
                 {/* Status Badges on Top */}
                 <div className="absolute top-2 right-2 z-20 flex items-center gap-1">
                   {progress.isCompleted ? (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500 text-zinc-950 shadow-md">
-                      🏆 Fin
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-400 text-zinc-950 shadow-md border border-amber-300/80 flex items-center gap-1">
+                      <span>🏆</span>
+                      <span>¡Completado!</span>
                     </span>
                   ) : progress.completedCount > 0 ? (
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-600 text-white shadow-md">
@@ -243,13 +244,18 @@ export default function BookLibraryShelf({
                   {book.displayTitle}
                 </p>
                 <p className="text-[10px] text-zinc-500 dark:text-zinc-400">
-                  {progress.isCompleted
-                    ? "🏆 100% Conquistado"
-                    : progress.completedCount > 0
-                    ? `${progress.completedCount} de ${progress.totalChapters || progress.completedCount} niveles`
-                    : book.lastReadPage && book.lastReadPage > 1
-                    ? `Página ${book.lastReadPage}`
-                    : "Comenzar"}
+                  {progress.isCompleted ? (
+                    <span className="font-bold text-amber-600 dark:text-amber-400 inline-flex items-center gap-1">
+                      <span>🏆</span>
+                      <span>¡Completado!</span>
+                    </span>
+                  ) : progress.completedCount > 0 ? (
+                    `${progress.completedCount} de ${progress.totalChapters || progress.completedCount} niveles`
+                  ) : book.lastReadPage && book.lastReadPage > 1 ? (
+                    `Página ${book.lastReadPage}`
+                  ) : (
+                    "Comenzar"
+                  )}
                 </p>
               </div>
             </div>
