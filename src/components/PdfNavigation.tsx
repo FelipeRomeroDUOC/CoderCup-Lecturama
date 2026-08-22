@@ -78,42 +78,42 @@ export default function PdfNavigation({
   };
 
   return (
-    <div className="flex flex-col sm:flex-row items-center gap-2 px-4 py-2 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-lg">
+    <div className="flex flex-col sm:flex-row items-center gap-2.5 px-4 py-2 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border border-zinc-200/80 dark:border-zinc-800 rounded-full shadow-xl">
       {activeChapterTitle && (
-        <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 max-w-[200px] truncate hidden md:inline-block border-r border-zinc-200 dark:border-zinc-800 pr-3 mr-1">
+        <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 max-w-[220px] truncate hidden md:inline-block border-r border-zinc-200 dark:border-zinc-800 pr-3 mr-1">
           {activeChapterTitle}
         </span>
       )}
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5">
         <button
           type="button"
           onClick={handlePrevious}
           disabled={currentPage <= 1}
-          className="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="px-3.5 py-1.5 text-xs sm:text-sm font-semibold rounded-full border border-zinc-200 dark:border-zinc-700 bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
           aria-label="Página anterior"
         >
           ← Anterior
         </button>
 
-        <form onSubmit={handleFormSubmit} className="flex items-center gap-1.5 text-xs sm:text-sm text-zinc-700 dark:text-zinc-300">
+        <form onSubmit={handleFormSubmit} className="flex items-center gap-1.5 text-xs sm:text-sm font-medium text-zinc-700 dark:text-zinc-300">
           <span>Pág.</span>
           <input
             type="text"
             value={inputPage}
             onChange={handleInputChange}
             onBlur={submitPage}
-            className="w-11 px-1 py-0.5 text-center font-medium rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-400"
+            className="w-12 px-1 py-0.5 text-center font-bold rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
             aria-label="Número de página"
           />
-          <span>de {numPages || 1}</span>
+          <span className="text-zinc-500">/ {numPages || 1}</span>
         </form>
 
         <button
           type="button"
           onClick={handleNext}
           disabled={currentPage >= numPages}
-          className="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="px-3.5 py-1.5 text-xs sm:text-sm font-semibold rounded-full border border-zinc-200 dark:border-zinc-700 bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
           aria-label="Página siguiente"
         >
           Siguiente →

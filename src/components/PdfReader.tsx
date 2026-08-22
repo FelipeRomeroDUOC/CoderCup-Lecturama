@@ -20,6 +20,7 @@ import ChapterSidebar from "@/components/ChapterSidebar";
 import PdfNavigation from "@/components/PdfNavigation";
 import PdfViewer from "@/components/PdfViewer";
 import QuizModal from "@/components/QuizModal";
+import LecturamaLogo from "@/components/LecturamaLogo";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 
@@ -539,33 +540,36 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
       : false;
 
   return (
-    <div className="flex flex-col h-screen bg-zinc-950 text-zinc-100 overflow-hidden font-sans">
+    <div className="flex flex-col h-screen bg-[#FAF8F5] dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 overflow-hidden font-sans transition-colors duration-200">
       {/* Top Header Bar */}
-      <header className="h-14 border-b border-zinc-800 bg-zinc-900/90 backdrop-blur px-4 flex items-center justify-between shrink-0 z-20">
+      <header className="h-14 border-b border-zinc-200/80 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md px-4 flex items-center justify-between shrink-0 z-20">
         <div className="flex items-center gap-3 min-w-0">
+          <LecturamaLogo size={28} withGlow={false} />
+
           <button
             type="button"
             onClick={() => setIsSidebarOpen((prev) => !prev)}
-            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition-colors flex items-center gap-1.5 cursor-pointer"
+            className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 transition-colors flex items-center gap-1.5 cursor-pointer"
             title="Alternar panel de capítulos"
           >
-            <span>📑</span>
-            <span>{isSidebarOpen ? "Ocultar Capítulos" : "Ver Capítulos"}</span>
+            <span>📜</span>
+            <span className="hidden sm:inline">{isSidebarOpen ? "Ocultar Índice" : "Ver Índice"}</span>
           </button>
-          <span className="text-sm font-semibold truncate text-zinc-200 max-w-xs md:max-w-md">
+
+          <span className="text-xs sm:text-sm font-bold truncate text-zinc-900 dark:text-zinc-100 max-w-[140px] sm:max-w-xs md:max-w-md font-[family-name:var(--font-outfit)]">
             {file.name}
           </span>
         </div>
 
         {/* Center Controls: Difficulty Selector */}
         <div className="flex items-center gap-2">
-          <label className="text-xs text-zinc-400 font-medium hidden sm:inline">
-            Nivel:
+          <label className="text-xs text-zinc-500 dark:text-zinc-400 font-semibold hidden md:inline">
+            Dificultad:
           </label>
           <select
             value={difficulty}
             onChange={(e) => handleDifficultyChange(e.target.value as QuizDifficulty)}
-            className="text-xs bg-zinc-800 text-zinc-200 border border-zinc-700 rounded-lg px-2.5 py-1.5 font-medium hover:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-amber-500 cursor-pointer"
+            className="text-xs bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 rounded-xl px-3 py-1.5 font-semibold hover:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 cursor-pointer shadow-2xs"
             title="Ajusta el nivel y vocabulario de las preguntas"
           >
             <option value="basic">🧒 Básica (8-12 años)</option>
@@ -580,19 +584,19 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
             <button
               type="button"
               onClick={handleDevReset}
-              className="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 transition-colors flex items-center gap-1 cursor-pointer"
+              className="px-2.5 py-1.5 text-xs font-bold rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 transition-colors flex items-center gap-1 cursor-pointer"
               title="[DEV] Reiniciar todos los niveles, bloquearlos nuevamente y vaciar caché del servidor"
             >
               <span>🛠️</span>
-              <span>Reset [DEV]</span>
+              <span className="hidden sm:inline">Reset [DEV]</span>
             </button>
           )}
 
-          <div className="hidden sm:flex items-center gap-1 bg-zinc-800 rounded-lg p-1 border border-zinc-700 text-xs">
+          <div className="hidden sm:flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 rounded-xl p-1 border border-zinc-200 dark:border-zinc-700 text-xs">
             <button
               type="button"
               onClick={zoomOut}
-              className="px-2 py-0.5 hover:bg-zinc-700 rounded text-zinc-300 cursor-pointer"
+              className="px-2 py-0.5 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg text-zinc-700 dark:text-zinc-300 font-bold cursor-pointer"
               title="Reducir zoom"
             >
               -
@@ -600,7 +604,7 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
             <button
               type="button"
               onClick={zoomReset}
-              className="px-2 py-0.5 hover:bg-zinc-700 rounded text-zinc-300 font-mono cursor-pointer"
+              className="px-2 py-0.5 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg text-zinc-800 dark:text-zinc-200 font-semibold font-mono cursor-pointer"
               title="Restablecer zoom"
             >
               {Math.round(scale * 100)}%
@@ -608,7 +612,7 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
             <button
               type="button"
               onClick={zoomIn}
-              className="px-2 py-0.5 hover:bg-zinc-700 rounded text-zinc-300 cursor-pointer"
+              className="px-2 py-0.5 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg text-zinc-700 dark:text-zinc-300 font-bold cursor-pointer"
               title="Aumentar zoom"
             >
               +
@@ -618,7 +622,7 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
           <button
             type="button"
             onClick={onClose}
-            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 transition-colors cursor-pointer"
+            className="px-3 py-1.5 text-xs font-bold rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors shadow-2xs cursor-pointer"
           >
             Cambiar libro
           </button>
@@ -733,12 +737,15 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
 
       {/* Loading Overlay when generating/fetching quiz questions */}
       {isLoadingQuiz && (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 text-white space-y-4">
-          <div className="w-12 h-12 border-4 border-amber-400 border-t-transparent rounded-full animate-spin" />
-          <div className="text-center space-y-1">
-            <h3 className="text-lg font-bold">Generando Desafío con IA...</h3>
-            <p className="text-sm text-zinc-300 max-w-sm">
-              Analizando el contenido del capítulo para formular tus 5 preguntas de comprensión.
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/65 backdrop-blur-md animate-in fade-in duration-200 text-white space-y-4">
+          <LecturamaLogo size={52} />
+          <div className="w-10 h-10 border-3 border-amber-400 border-t-transparent rounded-full animate-spin" />
+          <div className="text-center space-y-1.5 px-4">
+            <h3 className="text-xl font-extrabold font-[family-name:var(--font-outfit)] tracking-tight">
+              Generando Desafío con IA...
+            </h3>
+            <p className="text-xs sm:text-sm text-zinc-300 max-w-sm mx-auto leading-relaxed">
+              Analizando el contenido del capítulo para formular tus 8 preguntas de comprensión lectora.
             </p>
           </div>
         </div>

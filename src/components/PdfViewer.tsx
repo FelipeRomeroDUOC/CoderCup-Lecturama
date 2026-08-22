@@ -145,18 +145,18 @@ function PdfViewerComponent({
   return (
     <div
       ref={containerRef}
-      className="flex flex-col items-center gap-6 py-8 px-4 w-full h-full overflow-y-auto"
+      className="flex flex-col items-center gap-7 py-8 px-4 w-full h-full overflow-y-auto bg-[#F5F2EB] dark:bg-zinc-950 transition-colors duration-200"
     >
       {/* Pages List */}
       {pageNumbers.map((pageNum) => (
         <div
           key={pageNum}
           data-page-number={pageNum}
-          className="relative shadow-xl rounded-lg overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-white transition-shadow duration-300 hover:shadow-2xl"
+          className="relative shadow-[0_8px_30px_rgb(0,0,0,0.10)] dark:shadow-2xl rounded-2xl overflow-hidden border border-amber-950/10 dark:border-zinc-800 bg-white transition-all duration-300 hover:shadow-[0_12px_40px_rgb(0,0,0,0.16)] ring-1 ring-black/5 dark:ring-white/5"
           style={{ width: `${calculatedPageWidth}px` }}
         >
           {/* Subtle Page Number Indicator on Top */}
-          <div className="absolute top-2 right-3 z-10 text-[10px] font-medium text-zinc-400 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm px-2 py-0.5 rounded shadow-sm">
+          <div className="absolute top-2.5 right-3 z-10 text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md px-2.5 py-0.5 rounded-full shadow-xs border border-zinc-200/60 dark:border-zinc-800/60">
             Pág. {pageNum}
           </div>
 
@@ -172,32 +172,38 @@ function PdfViewerComponent({
 
       {/* End of Chapter Action Card */}
       <div
-        className="w-full max-w-xl my-8 p-6 rounded-2xl border bg-gradient-to-b from-zinc-50 to-white dark:from-zinc-900 dark:to-zinc-950 border-zinc-200 dark:border-zinc-800 shadow-lg text-center animate-in fade-in duration-300"
+        className="w-full max-w-xl my-8 p-7 rounded-3xl border bg-white/90 dark:bg-zinc-900/90 border-amber-200/80 dark:border-zinc-800 shadow-xl text-center animate-in fade-in duration-300 backdrop-blur-sm relative overflow-hidden"
       >
-        <div className="space-y-3">
-          <div className="space-y-1">
-            <span className="text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+        {/* Subtle Warm Glow Behind Card */}
+        <div
+          className="absolute -top-12 left-1/2 -translate-x-1/2 w-40 h-40 bg-amber-400/15 dark:bg-amber-400/5 rounded-full blur-2xl pointer-events-none"
+          aria-hidden="true"
+        />
+
+        <div className="space-y-4 relative z-10">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-100 dark:bg-amber-950/70 text-amber-900 dark:text-amber-300 border border-amber-200 dark:border-amber-800/80 shadow-xs">
               {isPreliminary
-                ? "📖 Sección Introductoria"
+                ? "📖 Sección Informativa"
                 : isCurrentChapterCompleted
-                ? "✅ Capítulo Superado"
+                ? "✅ Capítulo Superado con Honores"
                 : hasActiveQuizSession
                 ? "⚔️ Desafío en Pausa"
-                : "⚔️ Desafío de Nivel"}
-            </span>
+                : "✨ Desafío de Nivel"}
+            </div>
 
-            <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 pt-2">
+            <h3 className="text-xl font-extrabold text-zinc-900 dark:text-zinc-100 font-[family-name:var(--font-outfit)] pt-1">
               {activeChapterTitle || "Fin del capítulo"}
             </h3>
 
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 max-w-md mx-auto leading-relaxed">
               {isPreliminary
                 ? "Has terminado de ver esta sección preliminar. Puedes avanzar libremente al primer capítulo del libro."
                 : isCurrentChapterCompleted
                 ? "Ya has superado este capítulo. Puedes releerlo libremente o continuar tu camino."
                 : hasActiveQuizSession && quizSessionInfo
                 ? `Tienes un quiz en pausa en la Pregunta ${quizSessionInfo.currentQuestion} de ${quizSessionInfo.totalQuestions} (${quizSessionInfo.lives} ${quizSessionInfo.lives === 1 ? "vida" : "vidas"}).`
-                : "Has terminado las páginas de este capítulo. Responde el quiz para desbloquear el siguiente nivel."}
+                : "Has terminado las páginas de este capítulo. Responde el quiz interactivo de 8 preguntas para desbloquear el siguiente nivel."}
             </p>
           </div>
 
@@ -206,7 +212,7 @@ function PdfViewerComponent({
               <button
                 type="button"
                 onClick={onPrevChapter}
-                className="px-4 py-2.5 text-sm font-medium rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-all cursor-pointer"
+                className="px-4 py-2.5 text-xs sm:text-sm font-semibold rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 transition-all cursor-pointer"
               >
                 ← Anterior
               </button>
@@ -217,7 +223,7 @@ function PdfViewerComponent({
               <button
                 type="button"
                 onClick={onNextChapter}
-                className="px-6 py-2.5 text-sm font-semibold rounded-xl bg-blue-600 text-white hover:bg-blue-500 shadow-md transition-all flex items-center gap-2 cursor-pointer"
+                className="px-6 py-2.5 text-xs sm:text-sm font-bold rounded-xl bg-zinc-900 hover:bg-amber-600 text-white dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-amber-400 shadow-md transition-all flex items-center gap-2 cursor-pointer"
               >
                 <span>Comenzar Lectura ➔</span>
               </button>
@@ -228,19 +234,19 @@ function PdfViewerComponent({
               <button
                 type="button"
                 onClick={onStartQuiz}
-                className={`px-5 py-2.5 text-sm font-semibold rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer ${
+                className={`px-6 py-3 text-xs sm:text-sm font-extrabold rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center gap-2 cursor-pointer ${
                   hasActiveQuizSession
-                    ? "bg-emerald-500 text-white hover:bg-emerald-400"
-                    : "bg-amber-500 text-zinc-950 hover:bg-amber-400"
+                    ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/20"
+                    : "bg-amber-500 hover:bg-amber-400 text-zinc-950 shadow-amber-500/25"
                 }`}
               >
                 <span>{hasActiveQuizSession ? "▶️" : "🎯"}</span>
                 <span>
                   {hasActiveQuizSession
                     ? quizSessionInfo
-                      ? `Continuar Quiz del Nivel (Pregunta ${quizSessionInfo.currentQuestion}/${quizSessionInfo.totalQuestions})`
+                      ? `Continuar Quiz del Nivel (${quizSessionInfo.currentQuestion}/${quizSessionInfo.totalQuestions})`
                       : "Continuar Quiz del Nivel"
-                    : "Comenzar Quiz del Nivel"}
+                    : "Comenzar Desafío del Nivel"}
                 </span>
               </button>
             )}
@@ -250,9 +256,9 @@ function PdfViewerComponent({
               <button
                 type="button"
                 onClick={onNextChapter}
-                className="px-5 py-2.5 text-sm font-medium rounded-xl bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 shadow-sm transition-all cursor-pointer"
+                className="px-6 py-2.5 text-xs sm:text-sm font-bold rounded-xl bg-emerald-600 text-white hover:bg-emerald-500 shadow-md transition-all flex items-center gap-2 cursor-pointer"
               >
-                Siguiente Capítulo →
+                <span>Siguiente Capítulo ➔</span>
               </button>
             )}
           </div>

@@ -38,9 +38,9 @@ export default function ChapterSidebar({
   const renderChapterList = (items: Chapter[], depth = 0) => {
     return (
       <ul
-        className={`space-y-1 ${
+        className={`space-y-1.5 ${
           depth > 0
-            ? "pl-3 border-l border-zinc-200 dark:border-zinc-800 ml-1.5 mt-1"
+            ? "pl-3 border-l-2 border-amber-200/60 dark:border-zinc-800 ml-2 mt-1"
             : ""
         }`}
       >
@@ -69,7 +69,7 @@ export default function ChapterSidebar({
           } else if (isCompleted) {
             icon = "✅";
           } else if (hasSubItems) {
-            icon = "📖";
+            icon = "📚";
           }
 
           return (
@@ -88,37 +88,37 @@ export default function ChapterSidebar({
                     : !isUnlocked
                     ? "Capítulo bloqueado. Supera el quiz del nivel actual para desbloquearlo."
                     : isCompleted
-                    ? "Capítulo completado (Lectura libre)"
+                    ? "Capítulo completado con honores (Lectura libre)"
                     : chapter.title
                 }
-                className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-all flex items-center justify-between gap-2 select-none ${
+                className={`w-full text-left px-3 py-2.5 text-xs sm:text-sm rounded-xl transition-all duration-200 flex items-center justify-between gap-2 select-none ${
                   !isUnlocked
-                    ? "opacity-35 cursor-not-allowed hover:cursor-not-allowed bg-zinc-100/30 dark:bg-zinc-900/20 text-zinc-400 dark:text-zinc-600 pointer-events-auto"
+                    ? "opacity-40 cursor-not-allowed bg-zinc-100/40 dark:bg-zinc-900/20 text-zinc-400 dark:text-zinc-600 pointer-events-auto"
                     : isActive
-                    ? "bg-zinc-900 text-white font-semibold shadow-sm dark:bg-zinc-100 dark:text-zinc-900"
+                    ? "bg-amber-100/90 dark:bg-amber-950/60 text-amber-950 dark:text-amber-200 font-bold border-l-4 border-amber-500 shadow-xs"
                     : isCompleted
-                    ? "text-zinc-800 dark:text-zinc-200 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 cursor-pointer"
+                    ? "text-zinc-800 dark:text-zinc-200 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:text-emerald-900 dark:hover:text-emerald-300 cursor-pointer"
                     : isPreliminary
-                    ? "text-zinc-700 dark:text-zinc-300 hover:bg-blue-50 dark:hover:bg-blue-950/20 cursor-pointer"
-                    : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 cursor-pointer"
+                    ? "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 cursor-pointer"
+                    : "text-zinc-700 dark:text-zinc-300 hover:bg-amber-50/70 dark:hover:bg-zinc-800/60 cursor-pointer"
                 }`}
               >
-                <div className="flex items-center gap-2 min-w-0 truncate">
-                  <span className="shrink-0 text-xs">{icon}</span>
+                <div className="flex items-center gap-2.5 min-w-0 truncate">
+                  <span className="shrink-0 text-sm">{icon}</span>
                   <span className="truncate">{chapter.title}</span>
                 </div>
 
                 <span
-                  className={`text-xs px-1.5 py-0.5 rounded shrink-0 ${
+                  className={`text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${
                     !isUnlocked
-                      ? "text-zinc-400/80 bg-zinc-200/30 dark:bg-zinc-800/30"
+                      ? "text-zinc-400 bg-zinc-200/40 dark:bg-zinc-800/40"
                       : isActive
-                      ? "bg-zinc-800 text-zinc-300 dark:bg-zinc-200 dark:text-zinc-800"
+                      ? "bg-amber-200/80 text-amber-900 dark:bg-amber-900/80 dark:text-amber-200"
                       : isCompleted
                       ? "text-emerald-700 bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-300"
                       : isPreliminary
-                      ? "text-blue-700 bg-blue-100 dark:bg-blue-950 dark:text-blue-300"
-                      : "text-zinc-500 bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-400"
+                      ? "text-zinc-500 bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-400"
+                      : "text-zinc-600 bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-400"
                   }`}
                 >
                   p. {chapter.startPage}
@@ -137,39 +137,43 @@ export default function ChapterSidebar({
 
   return (
     <aside
-      className={`fixed md:static inset-y-0 left-0 z-30 w-72 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 flex flex-col transition-all duration-300 ease-in-out ${
+      className={`fixed md:static inset-y-0 left-0 z-30 w-72 sm:w-80 bg-[#FAF8F5] dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 flex flex-col transition-all duration-300 ease-in-out shadow-lg md:shadow-none ${
         isOpen
           ? "translate-x-0 opacity-100"
           : "-translate-x-full md:w-0 md:opacity-0 overflow-hidden pointer-events-none"
       }`}
     >
-      <div className="flex items-center justify-between p-4 border-b border-zinc-200 dark:border-zinc-800">
-        <h2 className="font-semibold text-sm text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-          <span>📚</span>
-          <span>Índice del Libro</span>
-        </h2>
+      {/* Sidebar Header */}
+      <div className="flex items-center justify-between p-4 border-b border-zinc-200/80 dark:border-zinc-800/80 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-sm">
+        <div className="flex items-center gap-2">
+          <span className="text-base">📜</span>
+          <h2 className="font-bold text-sm text-zinc-900 dark:text-zinc-100 font-[family-name:var(--font-outfit)]">
+            Índice de Capítulos
+          </h2>
+        </div>
         <button
           type="button"
           onClick={onToggle}
-          className="p-1 rounded-lg text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
           title="Cerrar barra lateral"
         >
           ✕
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3">
+      {/* Chapters list */}
+      <div className="flex-1 overflow-y-auto p-3.5 space-y-1">
         {isLoading ? (
-          <div className="p-4 text-center text-sm text-zinc-500 space-y-2">
-            <div className="w-5 h-5 border-2 border-zinc-400 border-t-zinc-900 dark:border-t-zinc-100 rounded-full animate-spin mx-auto" />
-            <p>Leyendo índice del PDF...</p>
+          <div className="p-6 text-center text-sm text-zinc-500 space-y-3">
+            <div className="w-6 h-6 border-3 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="font-medium text-xs">Descifrando índice del tomo...</p>
           </div>
         ) : hasOutline === false ? (
-          <div className="p-4 text-sm text-zinc-500 text-center space-y-2">
+          <div className="p-6 text-xs text-zinc-500 text-center space-y-2">
             <p>Este PDF no contiene una tabla de contenidos embebida.</p>
           </div>
         ) : chapters.length === 0 ? (
-          <div className="p-4 text-sm text-zinc-500 text-center space-y-2">
+          <div className="p-6 text-xs text-zinc-500 text-center space-y-2">
             <p>No se encontraron capítulos en el documento.</p>
           </div>
         ) : (
