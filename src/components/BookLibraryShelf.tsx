@@ -78,17 +78,22 @@ export default function BookLibraryShelf({
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed.completedChapterIds)) {
-          const completedCount = parsed.completedChapterIds.length;
+          const rawCompleted = parsed.completedChapterIds.length;
           const totalChapters =
-            parsed.totalPlayableChapters ||
             book.totalChapters ||
+            parsed.totalPlayableChapters ||
             (typeof parsed.maxUnlockedIndex === "number" && parsed.maxUnlockedIndex > 0
-              ? Math.max(parsed.maxUnlockedIndex, completedCount)
-              : completedCount);
+              ? parsed.maxUnlockedIndex
+              : rawCompleted);
+
+          const completedCount =
+            totalChapters > 0
+              ? Math.min(rawCompleted, totalChapters)
+              : rawCompleted;
 
           const isCompleted =
             Boolean(parsed.isAllCompleted) ||
-            (totalChapters > 0 && completedCount >= totalChapters);
+            (totalChapters > 0 && rawCompleted >= totalChapters);
 
           const percent = isCompleted
             ? 100
