@@ -47,7 +47,7 @@ function openDB(): Promise<IDBDatabase> {
 export async function getAllStoredBooks(): Promise<StoredBook[]> {
   try {
     const db = await openDB();
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const transaction = db.transaction(STORE_NAME, "readonly");
       const store = transaction.objectStore(STORE_NAME);
       const request = store.getAll();
@@ -57,7 +57,16 @@ export async function getAllStoredBooks(): Promise<StoredBook[]> {
         books.sort((a, b) => b.lastReadAt - a.lastReadAt);
         resolve(books);
       };
-      request.onerror = () => reject(request.error);
+
+      request.onerror = (e) => {
+        console.warn("IndexedDB getAll request error:", request.error || e);
+        resolve([]);
+      };
+
+      transaction.onerror = (e) => {
+        console.warn("IndexedDB getAll transaction error:", transaction.error || e);
+        resolve([]);
+      };
     });
   } catch (err) {
     console.warn("Error fetching books from IndexedDB:", err);
@@ -66,18 +75,47 @@ export async function getAllStoredBooks(): Promise<StoredBook[]> {
 }
 
 /**
- * Save or update a book in IndexedDB.
+ * Save or update a book in IndexedDB safely by merging existing record.
  */
 export async function saveStoredBook(book: StoredBook): Promise<void> {
   try {
     const db = await openDB();
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const transaction = db.transaction(STORE_NAME, "readwrite");
       const store = transaction.objectStore(STORE_NAME);
-      const request = store.put(book);
 
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = (e) => {
+        console.warn("IndexedDB save transaction error:", transaction.error || e);
+        resolve();
+      };
+      transaction.onabort = (e) => {
+        console.warn("IndexedDB save transaction aborted:", transaction.error || e);
+        resolve();
+      };
+
+      const getReq = store.get(book.id);
+      getReq.onsuccess = () => {
+        const existing = getReq.result as StoredBook | undefined;
+        const merged: StoredBook = {
+          id: book.id,
+          fileName: book.fileName || existing?.fileName || book.id,
+          displayTitle: book.displayTitle || existing?.displayTitle || book.fileName || "Libro",
+          author: book.author || existing?.author,
+          fileBlob: book.fileBlob || existing?.fileBlob || new Blob(),
+          fileSize: book.fileSize || existing?.fileSize || 0,
+          coverDataUrl: book.coverDataUrl || existing?.coverDataUrl,
+          totalPages: book.totalPages || existing?.totalPages,
+          totalChapters: book.totalChapters || existing?.totalChapters,
+          lastReadPage: book.lastReadPage || existing?.lastReadPage || 1,
+          lastReadAt: book.lastReadAt || existing?.lastReadAt || Date.now(),
+          createdAt: existing?.createdAt || book.createdAt || Date.now(),
+        };
+        store.put(merged);
+      };
+      getReq.onerror = () => {
+        store.put(book);
+      };
     });
   } catch (err) {
     console.warn("Error saving book to IndexedDB:", err);
@@ -90,13 +128,21 @@ export async function saveStoredBook(book: StoredBook): Promise<void> {
 export async function deleteStoredBook(id: string): Promise<void> {
   try {
     const db = await openDB();
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const transaction = db.transaction(STORE_NAME, "readwrite");
       const store = transaction.objectStore(STORE_NAME);
-      const request = store.delete(id);
 
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = (e) => {
+        console.warn("IndexedDB delete transaction error:", transaction.error || e);
+        resolve();
+      };
+      transaction.onabort = (e) => {
+        console.warn("IndexedDB delete transaction aborted:", transaction.error || e);
+        resolve();
+      };
+
+      store.delete(id);
     });
   } catch (err) {
     console.warn("Error deleting book from IndexedDB:", err);
@@ -112,18 +158,24 @@ export async function updateBookProgress(
 ): Promise<void> {
   try {
     const db = await openDB();
-    const transaction = db.transaction(STORE_NAME, "readwrite");
-    const store = transaction.objectStore(STORE_NAME);
-    const getRequest = store.get(id);
+    return new Promise((resolve) => {
+      const transaction = db.transaction(STORE_NAME, "readwrite");
+      const store = transaction.objectStore(STORE_NAME);
 
-    getRequest.onsuccess = () => {
-      const existing = getRequest.result as StoredBook | undefined;
-      if (existing) {
-        existing.lastReadPage = lastReadPage;
-        existing.lastReadAt = Date.now();
-        store.put(existing);
-      }
-    };
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => resolve();
+      transaction.onabort = () => resolve();
+
+      const getRequest = store.get(id);
+      getRequest.onsuccess = () => {
+        const existing = getRequest.result as StoredBook | undefined;
+        if (existing) {
+          existing.lastReadPage = lastReadPage;
+          existing.lastReadAt = Date.now();
+          store.put(existing);
+        }
+      };
+    });
   } catch (err) {
     console.warn("Could not update book progress in IndexedDB:", err);
   }
@@ -138,17 +190,23 @@ export async function updateBookChapterCount(
 ): Promise<void> {
   try {
     const db = await openDB();
-    const transaction = db.transaction(STORE_NAME, "readwrite");
-    const store = transaction.objectStore(STORE_NAME);
-    const getRequest = store.get(id);
+    return new Promise((resolve) => {
+      const transaction = db.transaction(STORE_NAME, "readwrite");
+      const store = transaction.objectStore(STORE_NAME);
 
-    getRequest.onsuccess = () => {
-      const existing = getRequest.result as StoredBook | undefined;
-      if (existing && existing.totalChapters !== totalChapters) {
-        existing.totalChapters = totalChapters;
-        store.put(existing);
-      }
-    };
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => resolve();
+      transaction.onabort = () => resolve();
+
+      const getRequest = store.get(id);
+      getRequest.onsuccess = () => {
+        const existing = getRequest.result as StoredBook | undefined;
+        if (existing && existing.totalChapters !== totalChapters) {
+          existing.totalChapters = totalChapters;
+          store.put(existing);
+        }
+      };
+    });
   } catch (err) {
     console.warn("Could not update book chapter count in IndexedDB:", err);
   }
