@@ -34,11 +34,51 @@ Versión mayor que introduce la persistencia local de manuscritos, la Estanterí
 
 ## [1.0.0-beta.5] - 2026-08-22
 
+Quinta versión beta que introduce la identidad visual "Manuscrito Vivo" diseñada con Google Stitch, resiliencia con Fast-Fallback y optimización de latencia.
+
+### ✨ Añadido (Added)
+- **Identidad Visual "Manuscrito Vivo" (Google Stitch)**:
+  - Fondo animado en gravedad cero con libros flotantes, plumas y destellos sobre grafito cálido (`#0E0D0C`) con halos dorados.
+  - Atril de lectura táctil (dropzone con resplandor dorado `gold-glow` y micro-animaciones).
+  - Escritorio de lectura inmersivo con iluminación de lámpara y sombra multicapa envolvente.
+  - Monograma e Isotipo Oficial SVG de libro abierto con halo de conocimiento.
+- **Historial de Versiones en Tiempo Real**:
+  - Ruta interactiva `/changelog` para consultar las versiones y notas de lanzamiento oficiales.
+
+### 🎨 Mejorado (Changed)
+- **Latencia de IA y Fast-Fallback**:
+  - Conmutación ultra-rápida a `gemini-3.5-flash-lite` (~2.8s) con respaldo en `gemini-3.6-flash`.
+  - Configuración de políticas de seguridad permisivas (`BLOCK_NONE`) para evitar falsos positivos en obras literarias.
+
+### 🛡️ Corregido (Fixed)
+- **Desbloqueo de Niveles en Cascada**:
+  - Corrección de la lógica de desbloqueo secuencial para garantizar que solo se desbloquee el capítulo inmediatamente siguiente.
+
+---
+
+## [1.0.0-beta.4] - 2026-08-21
+
+Cuarta versión beta enfocada en la calibración pedagógica profunda de los desafíos de lectura y metacognición del lector.
+
+### ✨ Añadido (Added)
+- **8 Preguntas Psicométricas por Nivel**:
+  - Incremento del reto a 8 preguntas con distractores de alta verosimilitud y explicaciones inmediatas.
+  - Adaptabilidad de razonamiento según el tipo de texto (narrativo vs. expositivo/argumentativo).
+- **Sistema de 4 Vidas y Metacognición**:
+  - 4 vidas por nivel (`❤️❤️❤️❤️`) con diagnóstico formativo.
+  - Tips de Atención Lectora graduados según vidas restantes (4, 3, 2, 1, 0) para fortalecer la concentración.
+- **Dificultad Calibrada en 3 Niveles**:
+  - Básica (8 a 12 años), Media (13 a 17 años) y Avanzada (Adultos).
+
+---
+
+## [1.0.0-beta.3] - 2026-08-21
+
 Tercera versión beta que elimina de raíz la sobrecarga concurrente durante la apertura de PDFs y estabiliza la gamificación.
 
 ### 🛡️ Corregido (Fixed)
 - **Prevención de Inundación de Páginas en Inicialización**:
-  - Se implementó un estado de espera (*"Detectando capítulos y niveles..."*) mientras se extrae el outline del libro, evitando que React 19 intente montar cientos de páginas simultáneas antes de conocer la estructura del documento.
+  - Se implementó un estado de espera (*"Detectando capítulos y niveles..."*) mientras se extrae el outline del libro, evitando que React intente montar cientos de páginas simultáneas antes de conocer la estructura del documento.
   - Se eliminó el rebote de `activeChapterId` por scroll dentro del capítulo, desacoplando la observación de página de la selección de niveles.
   - Se corrigió el enlace de propiedades de gamificación (`isCurrentChapterCompleted`, `isNextChapterUnlocked`, `isNonPlayable`).
 - **Limpieza de Código**:
