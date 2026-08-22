@@ -1,7 +1,12 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
-import { StoredBook, getAllStoredBooks, deleteStoredBook } from "@/lib/bookStorage";
+import {
+  StoredBook,
+  getAllStoredBooks,
+  deleteStoredBook,
+  parseFilenameTitleAndAuthor,
+} from "@/lib/bookStorage";
 import { getClientUserId } from "@/lib/clientSession";
 import LecturamaLogo from "@/components/LecturamaLogo";
 
@@ -153,6 +158,7 @@ export default function BookLibraryShelf({
         {books.map((book) => {
           const progress = getBookProgress(book);
           const hasCover = Boolean(book.coverDataUrl);
+          const authorName = book.author || parseFilenameTitleAndAuthor(book.fileName).author;
 
           return (
             <div
@@ -166,7 +172,7 @@ export default function BookLibraryShelf({
                 }
               }}
               className="group relative flex flex-col cursor-pointer select-none text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 rounded-2xl"
-              title={`Reanudar: ${book.displayTitle}`}
+              title={`Reanudar: ${book.displayTitle}${authorName ? ` - ${authorName}` : ""}`}
             >
               {/* 3D Book Jacket & Spine Wrapper with Zero Gravity Hover */}
               <div className="relative w-full aspect-[1/1.42] rounded-xl overflow-hidden bg-zinc-900 border border-zinc-700/70 shadow-md group-hover:shadow-[0_20px_35px_rgba(217,119,6,0.25)] group-hover:-translate-y-2.5 group-hover:rotate-[-1.5deg] group-hover:border-amber-400/80 transition-all duration-300 ease-out flex flex-col justify-between">
@@ -186,16 +192,23 @@ export default function BookLibraryShelf({
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
                     {/* Dark gradient overlay for text readability */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent z-10" />
                   </div>
                 ) : (
                   <div className="relative w-full h-full p-4 flex flex-col justify-between bg-gradient-to-b from-[#2B231D] to-[#141210]">
                     <div className="flex justify-center pt-3 opacity-80">
                       <LecturamaLogo size={32} />
                     </div>
-                    <p className="font-[family-name:var(--font-outfit)] font-bold text-xs sm:text-sm text-zinc-100 line-clamp-3 text-center leading-snug">
-                      {book.displayTitle}
-                    </p>
+                    <div>
+                      <p className="font-[family-name:var(--font-outfit)] font-bold text-xs sm:text-sm text-zinc-100 line-clamp-3 text-center leading-snug">
+                        {book.displayTitle}
+                      </p>
+                      {authorName && (
+                        <p className="text-[10px] text-zinc-400 text-center mt-1 font-medium">
+                          {authorName}
+                        </p>
+                      )}
+                    </div>
                     <div className="h-2" />
                   </div>
                 )}
@@ -224,11 +237,18 @@ export default function BookLibraryShelf({
                   </button>
                 </div>
 
-                {/* Bottom Title & Page Info Inside Card Overlay */}
+                {/* Bottom Title, Author, Progress Bar & Page Info Inside Card Overlay */}
                 <div className="absolute bottom-0 left-0 right-0 p-3 z-20 text-white space-y-1.5">
-                  <p className="font-[family-name:var(--font-outfit)] font-extrabold text-xs leading-tight line-clamp-2 drop-shadow-md text-amber-100 group-hover:text-amber-300 transition-colors">
-                    {book.displayTitle}
-                  </p>
+                  <div>
+                    <p className="font-[family-name:var(--font-outfit)] font-extrabold text-xs leading-tight line-clamp-2 drop-shadow-md text-amber-100 group-hover:text-amber-300 transition-colors">
+                      {book.displayTitle}
+                    </p>
+                    {authorName && (
+                      <p className="text-[10px] text-zinc-300 font-medium truncate drop-shadow-xs mt-0.5 opacity-90">
+                        ✍️ {authorName}
+                      </p>
+                    )}
+                  </div>
 
                   {/* Progress Bar inside Card */}
                   {progress.completedCount > 0 && (
@@ -247,27 +267,6 @@ export default function BookLibraryShelf({
                     </span>
                   </div>
                 </div>
-              </div>
-
-              {/* Outside Caption */}
-              <div className="pt-2 px-1 text-center space-y-0.5">
-                <p className="text-[11px] font-bold text-zinc-800 dark:text-zinc-200 truncate" title={book.displayTitle}>
-                  {book.displayTitle}
-                </p>
-                <p className="text-[10px] text-zinc-500 dark:text-zinc-400">
-                  {progress.isCompleted ? (
-                    <span className="font-bold text-amber-600 dark:text-amber-400 inline-flex items-center gap-1">
-                      <span>🏆</span>
-                      <span>¡Completado!</span>
-                    </span>
-                  ) : progress.completedCount > 0 ? (
-                    `${progress.completedCount} de ${progress.totalChapters || progress.completedCount} niveles (${progress.percent}%)`
-                  ) : book.lastReadPage && book.lastReadPage > 1 ? (
-                    `Página ${book.lastReadPage}`
-                  ) : (
-                    "Comenzar"
-                  )}
-                </p>
               </div>
             </div>
           );

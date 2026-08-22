@@ -6,7 +6,7 @@ import dynamic from "next/dynamic";
 import LecturamaLogo from "@/components/LecturamaLogo";
 import PdfUploader from "@/components/PdfUploader";
 import LibraryFloatingBackground from "@/components/LibraryFloatingBackground";
-import { saveStoredBook, formatFallbackTitle } from "@/lib/bookStorage";
+import { saveStoredBook, parseFilenameTitleAndAuthor } from "@/lib/bookStorage";
 
 const BookLibraryShelf = dynamic(() => import("@/components/BookLibraryShelf"), {
   ssr: false,
@@ -35,10 +35,12 @@ export default function Home() {
     setSelectedFile(file);
 
     // Auto-save initial book entry to IndexedDB
+    const parsed = parseFilenameTitleAndAuthor(file.name);
     saveStoredBook({
       id: file.name,
       fileName: file.name,
-      displayTitle: formatFallbackTitle(file.name),
+      displayTitle: parsed.title,
+      author: parsed.author,
       fileBlob: file,
       fileSize: file.size,
       totalPages: 1,

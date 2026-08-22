@@ -4,6 +4,7 @@ export interface StoredBook {
   id: string;
   fileName: string;
   displayTitle: string;
+  author?: string;
   fileBlob: Blob;
   fileSize: number;
   coverDataUrl?: string;
@@ -154,24 +155,54 @@ export async function updateBookChapterCount(
 }
 
 /**
- * Clean and format a filename into a legible book title fallback.
+ * Clean and format a filename into a legible book title and optional author.
  */
-export function formatFallbackTitle(fileName: string): string {
+export function parseFilenameTitleAndAuthor(fileName: string): {
+  title: string;
+  author?: string;
+} {
   let clean = fileName.replace(/\.pdf$/i, "");
-  // Replace underscores and hyphens with spaces
-  clean = clean.replace(/[_-]+/g, " ");
-  // Remove common artifacts like (1), [PDF], etc.
   clean = clean.replace(/\[.*?\]|\(.*?\)/g, "").trim();
-  // Capitalize first letters
-  return clean
+
+  // If separated by '-' (e.g. "Cuentos_de_la_selva-Horacio_Quiroga")
+  if (clean.includes("-")) {
+    const parts = clean.split("-").map((p) =>
+      p
+        .replace(/[_-]+/g, " ")
+        .trim()
+        .split(" ")
+        .filter(Boolean)
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" ")
+    );
+
+    if (parts.length >= 2) {
+      return {
+        title: parts[0],
+        author: parts.slice(1).join(" - "),
+      };
+    }
+  }
+
+  const formatted = clean
+    .replace(/[_-]+/g, " ")
+    .trim()
     .split(" ")
     .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ");
+
+  return {
+    title: formatted || "Libro sin título",
+  };
+}
+
+export function formatFallbackTitle(fileName: string): string {
+  return parseFilenameTitleAndAuthor(fileName).title;
 }
 
 /**
- * Safe client-side extraction of book title and first-page cover thumbnail
+ * Safe client-side extraction of book title, author and first-page cover thumbnail
  * directly from an already loaded PDFDocumentProxy (zero race conditions).
  */
 export async function extractMetaAndCoverFromPdf(
@@ -179,18 +210,31 @@ export async function extractMetaAndCoverFromPdf(
   fileName: string
 ): Promise<{
   displayTitle: string;
+  author?: string;
   coverDataUrl?: string;
 }> {
+  const fallback = parseFilenameTitleAndAuthor(fileName);
   let displayTitle = "";
+  let author: string | undefined = fallback.author;
 
   // 1. Try reading PDF metadata
   try {
     const metadata = await pdf.getMetadata();
-    const metaTitle = (metadata?.info as Record<string, unknown>)?.Title;
+    const info = metadata?.info as Record<string, unknown> | undefined;
+    const metaTitle = info?.Title;
+    const metaAuthor = info?.Author || info?.Creator;
+
     if (typeof metaTitle === "string" && metaTitle.trim().length > 2) {
       const trimmed = metaTitle.trim();
       if (!/^untitled|^document|^microsoft word/i.test(trimmed)) {
         displayTitle = trimmed;
+      }
+    }
+
+    if (typeof metaAuthor === "string" && metaAuthor.trim().length > 2) {
+      const trimmedAuthor = metaAuthor.trim();
+      if (!/^anonymous|^desconocido|^microsoft|^adobe|^calibre/i.test(trimmedAuthor)) {
+        author = trimmedAuthor;
       }
     }
   } catch {
@@ -202,24 +246,35 @@ export async function extractMetaAndCoverFromPdf(
   try {
     const page1 = await pdf.getPage(1);
 
-    // If title not found in metadata, try first page text
-    if (!displayTitle) {
-      try {
-        const textContent = await page1.getTextContent();
-        const items = textContent.items as Array<{ str?: string }>;
-        const lines = items
-          .map((it) => it.str?.trim() || "")
-          .filter((str) => str.length > 2 && !/^\d+$|^p[aá]gina/i.test(str));
+    try {
+      const textContent = await page1.getTextContent();
+      const items = textContent.items as Array<{ str?: string }>;
+      const lines = items
+        .map((it) => it.str?.trim() || "")
+        .filter((str) => str.length > 1 && !/^\d+$|^p[aá]gina/i.test(str));
 
-        if (lines.length > 0) {
-          displayTitle = lines.slice(0, 2).join(" ");
-          if (displayTitle.length > 60) {
-            displayTitle = displayTitle.slice(0, 60) + "...";
-          }
+      if (!displayTitle && lines.length > 0) {
+        displayTitle = lines.slice(0, 2).join(" ");
+        if (displayTitle.length > 60) {
+          displayTitle = displayTitle.slice(0, 60) + "...";
         }
-      } catch {
-        // Ignore text extraction error
       }
+
+      if (!author && lines.length >= 2) {
+        const candidateAuthor = lines.find(
+          (l) =>
+            l !== displayTitle &&
+            l.length > 3 &&
+            l.length < 35 &&
+            /^[A-ZÁÉÍÓÚÑ]/.test(l) &&
+            !/editorial|tomo|edici[oó]n|volumen|cap[ií]tulo/i.test(l)
+        );
+        if (candidateAuthor) {
+          author = candidateAuthor;
+        }
+      }
+    } catch {
+      // Ignore text extraction error
     }
 
     // Render cover thumbnail on a canvas
@@ -249,11 +304,12 @@ export async function extractMetaAndCoverFromPdf(
 
   // 3. Fallback to cleaned filename
   if (!displayTitle || displayTitle.trim().length < 2) {
-    displayTitle = formatFallbackTitle(fileName);
+    displayTitle = fallback.title;
   }
 
   return {
     displayTitle,
+    author,
     coverDataUrl,
   };
 }

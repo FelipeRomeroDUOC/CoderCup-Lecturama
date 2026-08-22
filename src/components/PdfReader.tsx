@@ -127,6 +127,7 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
               id: file.name,
               fileName: file.name,
               displayTitle: meta.displayTitle,
+              author: meta.author,
               fileBlob: file,
               fileSize: file.size,
               coverDataUrl: meta.coverDataUrl,
