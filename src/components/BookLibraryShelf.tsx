@@ -74,13 +74,24 @@ export default function BookLibraryShelf({
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed.completedChapterIds)) {
           const completedCount = parsed.completedChapterIds.length;
-          const totalChapters = book.totalChapters || 0;
-          const percent =
-            totalChapters > 0
-              ? Math.min(100, Math.round((completedCount / totalChapters) * 100))
-              : 0;
+          const totalChapters =
+            parsed.totalPlayableChapters ||
+            book.totalChapters ||
+            (typeof parsed.maxUnlockedIndex === "number" && parsed.maxUnlockedIndex > 0
+              ? Math.max(parsed.maxUnlockedIndex, completedCount)
+              : completedCount);
+
           const isCompleted =
-            totalChapters > 0 ? completedCount >= totalChapters : false;
+            Boolean(parsed.isAllCompleted) ||
+            (totalChapters > 0 && completedCount >= totalChapters);
+
+          const percent = isCompleted
+            ? 100
+            : totalChapters > 0
+            ? Math.min(100, Math.round((completedCount / totalChapters) * 100))
+            : completedCount > 0
+            ? 100
+            : 0;
 
           return {
             completedCount,
@@ -220,10 +231,10 @@ export default function BookLibraryShelf({
                   </p>
 
                   {/* Progress Bar inside Card */}
-                  {progress.totalChapters > 0 && progress.completedCount > 0 && (
-                    <div className="w-full bg-black/50 rounded-full h-1 overflow-hidden border border-white/10">
+                  {progress.completedCount > 0 && (
+                    <div className="w-full bg-black/60 rounded-full h-1.5 overflow-hidden border border-white/15">
                       <div
-                        className="bg-amber-400 h-full rounded-full transition-all duration-500"
+                        className="bg-amber-400 h-full rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(245,158,11,0.8)]"
                         style={{ width: `${progress.percent}%` }}
                       />
                     </div>
@@ -250,7 +261,7 @@ export default function BookLibraryShelf({
                       <span>¡Completado!</span>
                     </span>
                   ) : progress.completedCount > 0 ? (
-                    `${progress.completedCount} de ${progress.totalChapters || progress.completedCount} niveles`
+                    `${progress.completedCount} de ${progress.totalChapters || progress.completedCount} niveles (${progress.percent}%)`
                   ) : book.lastReadPage && book.lastReadPage > 1 ? (
                     `Página ${book.lastReadPage}`
                   ) : (

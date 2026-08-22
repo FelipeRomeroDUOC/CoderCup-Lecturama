@@ -72,22 +72,33 @@ export function useGamification({
     }
   }, [storageKey]);
 
+  const totalPlayableChapters = useMemo(() => {
+    return chapters.filter((c) => !isFiller(c)).length;
+  }, [chapters, isFiller]);
+
   // Persist progress changes to localStorage
   const saveProgress = useCallback(
     (completedIds: string[], unlockedIndex: number) => {
       try {
+        const isAllDone =
+          totalPlayableChapters > 0
+            ? completedIds.length >= totalPlayableChapters
+            : false;
+
         localStorage.setItem(
           storageKey,
           JSON.stringify({
             completedChapterIds: completedIds,
             maxUnlockedIndex: unlockedIndex,
+            totalPlayableChapters,
+            isAllCompleted: isAllDone,
           })
         );
       } catch {
         // Ignore storage write errors
       }
     },
-    [storageKey]
+    [storageKey, totalPlayableChapters]
   );
 
   const isChapterCompleted = useCallback(
