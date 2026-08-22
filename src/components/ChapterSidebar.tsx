@@ -137,14 +137,14 @@ export default function ChapterSidebar({
 
   return (
     <aside
-      className={`fixed md:static inset-y-0 left-0 z-30 w-72 sm:w-80 bg-[#FAF8F5] dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 flex flex-col transition-all duration-300 ease-in-out shadow-lg md:shadow-none ${
+      className={`fixed md:static inset-y-0 left-0 z-30 w-72 sm:w-80 bg-[#FAF8F5] dark:bg-[#141210] border-r border-zinc-200 dark:border-amber-500/15 flex flex-col transition-all duration-300 ease-in-out shadow-lg md:shadow-none ${
         isOpen
           ? "translate-x-0 opacity-100"
           : "-translate-x-full md:w-0 md:opacity-0 overflow-hidden pointer-events-none"
       }`}
     >
       {/* Sidebar Header */}
-      <div className="flex items-center justify-between p-4 border-b border-zinc-200/80 dark:border-zinc-800/80 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-sm">
+      <div className="flex items-center justify-between p-4 border-b border-zinc-200/80 dark:border-amber-500/15 bg-white/70 dark:bg-[#1A1816]/90 backdrop-blur-md">
         <div className="flex items-center gap-2">
           <span className="text-base">📜</span>
           <h2 className="font-bold text-sm text-zinc-900 dark:text-zinc-100 font-[family-name:var(--font-outfit)]">

@@ -5,11 +5,12 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import LecturamaLogo from "@/components/LecturamaLogo";
 import PdfUploader from "@/components/PdfUploader";
+import LibraryFloatingBackground from "@/components/LibraryFloatingBackground";
 
 const PdfReader = dynamic(() => import("@/components/PdfReader"), {
   ssr: false,
   loading: () => (
-    <div className="flex min-h-screen items-center justify-center p-12 bg-[#FAF6F0] dark:bg-zinc-950">
+    <div className="flex min-h-screen items-center justify-center p-12 bg-[#FAF6F0] dark:bg-[#0E0D0C]">
       <div className="flex flex-col items-center space-y-4">
         <LecturamaLogo size={56} />
         <div className="w-9 h-9 border-3 border-[#D97706] border-t-transparent rounded-full animate-spin" />
@@ -37,9 +38,12 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FAF6F0] dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 selection:bg-[#D97706] selection:text-white flex flex-col font-sans transition-colors duration-200">
+    <div className="min-h-screen bg-[#FAF6F0] dark:bg-[#0E0D0C] text-zinc-900 dark:text-zinc-100 selection:bg-[#D97706] selection:text-white flex flex-col font-sans transition-colors duration-200 relative overflow-x-hidden">
+      {/* Animated Zero-Gravity Literary Background */}
+      <LibraryFloatingBackground />
+
       {/* Top Navbar */}
-      <nav className="sticky top-0 z-40 bg-[#FAF6F0]/85 dark:bg-zinc-950/85 backdrop-blur-md border-b border-[#D97706]/15 dark:border-zinc-800 shadow-[0_2px_15px_rgba(217,119,6,0.06)]">
+      <nav className="sticky top-0 z-40 bg-[#FAF6F0]/80 dark:bg-[#0E0D0C]/80 backdrop-blur-md border-b border-[#D97706]/15 dark:border-zinc-800/80 shadow-[0_2px_15px_rgba(217,119,6,0.06)]">
         <div className="flex justify-between items-center w-full px-6 py-4 max-w-6xl mx-auto">
           {/* Brand */}
           <div className="flex items-center gap-3">

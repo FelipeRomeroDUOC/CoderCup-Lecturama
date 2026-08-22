@@ -145,14 +145,17 @@ function PdfViewerComponent({
   return (
     <div
       ref={containerRef}
-      className="flex flex-col items-center gap-7 py-8 px-4 w-full h-full overflow-y-auto bg-[#F5F2EB] dark:bg-zinc-950 transition-colors duration-200"
+      className="flex flex-col items-center gap-7 py-8 px-4 w-full h-full overflow-y-auto bg-[#F4EFE6] dark:bg-[#121110] transition-colors duration-200 relative"
     >
+      {/* Warm Reading Desk Ambient Glow */}
+      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-amber-500/8 dark:bg-amber-500/6 rounded-full blur-3xl pointer-events-none" />
+
       {/* Pages List */}
       {pageNumbers.map((pageNum) => (
         <div
           key={pageNum}
           data-page-number={pageNum}
-          className="relative shadow-[0_8px_30px_rgb(0,0,0,0.10)] dark:shadow-2xl rounded-2xl overflow-hidden border border-amber-950/10 dark:border-zinc-800 bg-white transition-all duration-300 hover:shadow-[0_12px_40px_rgb(0,0,0,0.16)] ring-1 ring-black/5 dark:ring-white/5"
+          className="relative shadow-[0_12px_35px_rgba(0,0,0,0.12)] dark:shadow-[0_25px_60px_rgba(0,0,0,0.7)] rounded-2xl overflow-hidden border border-amber-950/10 dark:border-amber-500/15 bg-white transition-all duration-300 hover:shadow-[0_18px_45px_rgba(0,0,0,0.18)] dark:hover:shadow-[0_30px_70px_rgba(0,0,0,0.85)] ring-1 ring-black/5 dark:ring-amber-500/10"
           style={{ width: `${calculatedPageWidth}px` }}
         >
           {/* Subtle Page Number Indicator on Top */}
@@ -172,11 +175,11 @@ function PdfViewerComponent({
 
       {/* End of Chapter Action Card */}
       <div
-        className="w-full max-w-xl my-8 p-7 rounded-3xl border bg-white/90 dark:bg-zinc-900/90 border-amber-200/80 dark:border-zinc-800 shadow-xl text-center animate-in fade-in duration-300 backdrop-blur-sm relative overflow-hidden"
+        className="w-full max-w-xl my-8 p-7 rounded-3xl border bg-white/95 dark:bg-[#1A1816]/95 border-amber-200/90 dark:border-amber-500/25 shadow-2xl text-center animate-in fade-in duration-300 backdrop-blur-md relative overflow-hidden"
       >
         {/* Subtle Warm Glow Behind Card */}
         <div
-          className="absolute -top-12 left-1/2 -translate-x-1/2 w-40 h-40 bg-amber-400/15 dark:bg-amber-400/5 rounded-full blur-2xl pointer-events-none"
+          className="absolute -top-12 left-1/2 -translate-x-1/2 w-48 h-48 bg-amber-400/20 dark:bg-amber-400/10 rounded-full blur-2xl pointer-events-none"
           aria-hidden="true"
         />
 

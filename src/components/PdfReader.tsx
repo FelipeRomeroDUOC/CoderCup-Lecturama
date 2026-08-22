@@ -540,16 +540,16 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
       : false;
 
   return (
-    <div className="flex flex-col h-screen bg-[#FAF8F5] dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 overflow-hidden font-sans transition-colors duration-200">
+    <div className="flex flex-col h-screen bg-[#FAF8F5] dark:bg-[#0E0D0C] text-zinc-900 dark:text-zinc-100 overflow-hidden font-sans transition-colors duration-200">
       {/* Top Header Bar */}
-      <header className="h-14 border-b border-zinc-200/80 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md px-4 flex items-center justify-between shrink-0 z-20">
+      <header className="h-14 border-b border-zinc-200/80 dark:border-amber-500/15 bg-white/80 dark:bg-[#141210]/90 backdrop-blur-md px-4 flex items-center justify-between shrink-0 z-20">
         <div className="flex items-center gap-3 min-w-0">
           <LecturamaLogo size={28} withGlow={false} />
 
           <button
             type="button"
             onClick={() => setIsSidebarOpen((prev) => !prev)}
-            className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 transition-colors flex items-center gap-1.5 cursor-pointer"
+            className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-[#1F1C19] dark:hover:bg-[#2A2723] text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-amber-500/20 transition-colors flex items-center gap-1.5 cursor-pointer"
             title="Alternar panel de capítulos"
           >
             <span>📜</span>
@@ -569,7 +569,7 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
           <select
             value={difficulty}
             onChange={(e) => handleDifficultyChange(e.target.value as QuizDifficulty)}
-            className="text-xs bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 rounded-xl px-3 py-1.5 font-semibold hover:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 cursor-pointer shadow-2xs"
+            className="text-xs bg-white dark:bg-[#1F1C19] text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-amber-500/20 rounded-xl px-3 py-1.5 font-semibold hover:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 cursor-pointer shadow-2xs"
             title="Ajusta el nivel y vocabulario de las preguntas"
           >
             <option value="basic">🧒 Básica (8-12 años)</option>
