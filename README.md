@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Versión](https://img.shields.io/badge/versión-1.0.0--beta.4-amber?style=for-the-badge)
+![Versión](https://img.shields.io/badge/versión-1.0.0--beta.5-amber?style=for-the-badge)
 ![Estado](https://img.shields.io/badge/estado-beta%20pública-emerald?style=for-the-badge)
 ![Next.js](https://img.shields.io/badge/Next.js-16.3-black?style=for-the-badge&logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)
@@ -26,12 +26,17 @@ El libro se divide automáticamente en capítulos que funcionan como **niveles p
 
 ## ✨ Características Principales
 
+- 🏛️ **Identidad Visual "Manuscrito Vivo" (Diseñada con Google Stitch)**:
+  - **Fondo animado en gravedad cero**: Libros flotantes, plumas, pergaminos y destellos sobre grafito cálido (`#0E0D0C`) con halos dorados.
+  - **Atril de lectura táctil**: Dropzone con resplandor dorado ambiental (`gold-glow`) y micro-animaciones.
+  - **Escritorio de lectura inmersivo**: Visor con iluminación de lámpara y hojas con sombra multicapa envolvente.
+  - **Isotipo Oficial SVG**: Monograma de libro abierto con halo de conocimiento.
 - 📖 **Visor Continuo de PDFs**:
   - Lectura vertical fluida con carga optimizada página por página.
   - Totalmente adaptado para pantallas móviles, tablets y ordenadores de escritorio.
 - 🎯 **Gamificación por Niveles y Bloqueo de Capítulos**:
   - Los capítulos siguientes permanecen bloqueados (`🔒`) hasta superar el quiz del nivel actual.
-  - Las secciones introductorias (portadas, dedicatorias, notas biográficas) se clasifican con IA y quedan libres para lectura inicial.
+  - Las secciones introductorias y anexos (portadas, dedicatorias, notas, glosarios) se clasifican con IA y quedan libres para lectura libre en cualquier momento.
 - 🧠 **Desafíos Pedagógicos con IA (Google Gemini)**:
   - Generación bajo demanda en **~2.8 segundos** (solo cuando el lector termina un capítulo).
   - **8 preguntas de opción múltiple** estructuradas con distractores psicométricos de alta verosimilitud y explicaciones formativas inmediatas.
