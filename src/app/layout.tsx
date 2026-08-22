@@ -23,6 +23,13 @@ export const metadata: Metadata = {
   title: "LECTURAMA",
   description:
     "La plataforma que convierte la lectura en aprendizaje entretenido, donde cada libro esconde un reto.",
+  icons: {
+    icon: [
+      { url: "/app-icon.png", type: "image/png" },
+    ],
+    apple: "/app-icon.png",
+    shortcut: "/app-icon.png",
+  },
 };
 
 export default function RootLayout({
