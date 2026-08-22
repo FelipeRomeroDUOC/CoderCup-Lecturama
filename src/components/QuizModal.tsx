@@ -8,6 +8,7 @@ import {
   clearQuizSession,
 } from "@/lib/quizSessionStore";
 import { getQuizCompletionFeedback } from "@/lib/quizFeedback";
+import LecturamaLogo from "@/components/LecturamaLogo";
 
 interface QuizModalProps {
   isOpen: boolean;
@@ -185,22 +186,25 @@ export default function QuizModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full max-w-xl bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="w-full max-w-xl bg-[#FAF8F5] dark:bg-zinc-900 rounded-3xl shadow-2xl border border-amber-200/80 dark:border-zinc-800 overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-900/50">
-          <div>
-            <span className="text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
-              Quiz del Nivel
-            </span>
-            <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100 truncate max-w-xs sm:max-w-sm">
-              {chapterTitle}
-            </h2>
+        <div className="px-6 py-4 border-b border-zinc-200/80 dark:border-zinc-800 flex items-center justify-between bg-white/70 dark:bg-zinc-900/70 backdrop-blur-sm">
+          <div className="flex items-center gap-3 min-w-0">
+            <LecturamaLogo size={26} withGlow={false} />
+            <div className="min-w-0">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 block">
+                ✨ Desafío del Nivel
+              </span>
+              <h2 className="text-sm sm:text-base font-extrabold text-zinc-900 dark:text-zinc-100 truncate max-w-[160px] sm:max-w-xs font-[family-name:var(--font-outfit)]">
+                {chapterTitle}
+              </h2>
+            </div>
           </div>
 
           {/* Lives Indicator */}
-          <div className="flex items-center gap-1.5 bg-rose-50 dark:bg-rose-950/40 px-3 py-1.5 rounded-full border border-rose-200 dark:border-rose-900/50">
-            <span className="text-xs font-semibold text-rose-700 dark:text-rose-300 mr-1">
+          <div className="flex items-center gap-1.5 bg-rose-50 dark:bg-rose-950/40 px-3.5 py-1.5 rounded-full border border-rose-200 dark:border-rose-900/50 shadow-2xs">
+            <span className="text-xs font-bold text-rose-700 dark:text-rose-300 mr-0.5">
               Vidas:
             </span>
             {[1, 2, 3, 4].map((heart) => (
@@ -209,7 +213,7 @@ export default function QuizModal({
                 className={`text-sm transition-transform duration-200 ${
                   heart <= lives
                     ? "scale-100 opacity-100"
-                    : "scale-75 opacity-30 grayscale"
+                    : "scale-75 opacity-25 grayscale"
                 }`}
               >
                 ❤️
@@ -220,9 +224,9 @@ export default function QuizModal({
 
         {/* Progress Bar */}
         {!isGameOver && !isVictory && (
-          <div className="w-full bg-zinc-100 dark:bg-zinc-800 h-1.5">
+          <div className="w-full bg-amber-100 dark:bg-zinc-800 h-1.5">
             <div
-              className="bg-amber-500 h-full transition-all duration-300 ease-out"
+              className="bg-gradient-to-r from-amber-400 to-amber-500 h-full transition-all duration-300 ease-out shadow-xs"
               style={{ width: `${progressPercent}%` }}
             />
           </div>
@@ -347,17 +351,17 @@ export default function QuizModal({
             /* Active Question Screen */
             <div className="space-y-5">
               {/* Question Counter */}
-              <div className="flex items-center justify-between text-xs text-zinc-400 font-medium">
-                <span>
+              <div className="flex items-center justify-between text-xs font-semibold">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200/80 dark:border-zinc-700">
                   Pregunta {currentQuestionIndex + 1} de {totalQuestions}
                 </span>
-                <span>
+                <span className="text-zinc-500 dark:text-zinc-400">
                   {correctAnswersCount} {correctAnswersCount === 1 ? "acierto" : "aciertos"}
                 </span>
               </div>
 
               {/* Question Text */}
-              <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 leading-snug">
+              <h3 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-zinc-100 leading-snug font-[family-name:var(--font-outfit)]">
                 {currentQuestion.question}
               </h3>
 
@@ -368,18 +372,18 @@ export default function QuizModal({
                   const isCorrect = idx === currentQuestion.correctOptionIndex;
 
                   let optionStyles =
-                    "border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600 bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200";
+                    "border-zinc-200/90 dark:border-zinc-800 hover:border-amber-400 dark:hover:border-amber-500/60 bg-white dark:bg-zinc-800/90 text-zinc-800 dark:text-zinc-200 shadow-2xs hover:shadow-xs hover:scale-[1.008]";
 
                   if (isAnswerSubmitted) {
                     if (isCorrect) {
                       optionStyles =
-                        "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 font-medium";
+                        "border-emerald-500 bg-emerald-50/90 dark:bg-emerald-950/50 text-emerald-950 dark:text-emerald-200 font-semibold shadow-xs";
                     } else if (isSelected && !isCorrect) {
                       optionStyles =
-                        "border-rose-500 bg-rose-50 dark:bg-rose-950/40 text-rose-900 dark:text-rose-200 line-through";
+                        "border-rose-400 bg-rose-50/90 dark:bg-rose-950/50 text-rose-950 dark:text-rose-200 line-through";
                     } else {
                       optionStyles =
-                        "opacity-50 border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 text-zinc-400";
+                        "opacity-45 border-zinc-200 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-900/50 text-zinc-400";
                     }
                   }
 
@@ -391,25 +395,25 @@ export default function QuizModal({
                       type="button"
                       onClick={() => handleSelectOption(idx)}
                       disabled={isAnswerSubmitted}
-                      className={`w-full text-left p-3.5 rounded-2xl border-2 transition-all flex items-center justify-between gap-3 text-sm cursor-pointer ${optionStyles}`}
+                      className={`w-full text-left p-3.5 rounded-2xl border-2 transition-all duration-200 flex items-center justify-between gap-3 text-xs sm:text-sm cursor-pointer ${optionStyles}`}
                     >
                       <div className="flex items-center gap-3">
                         <span
-                          className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                          className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-extrabold shrink-0 shadow-2xs ${
                             isAnswerSubmitted && isCorrect
                               ? "bg-emerald-500 text-white"
                               : isAnswerSubmitted && isSelected && !isCorrect
                               ? "bg-rose-500 text-white"
-                              : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
+                              : "bg-zinc-100 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300"
                           }`}
                         >
                           {optionLetters[idx] || `${idx + 1}`}
                         </span>
-                        <span>{option}</span>
+                        <span className="leading-snug">{option}</span>
                       </div>
 
                       {isAnswerSubmitted && (
-                        <span className="text-base shrink-0">
+                        <span className="text-base shrink-0 font-bold">
                           {isCorrect ? "✓" : isSelected ? "✗" : ""}
                         </span>
                       )}
@@ -421,18 +425,18 @@ export default function QuizModal({
               {/* Pedagogical Explanation Box */}
               {isAnswerSubmitted && currentQuestion.explanation && (
                 <div
-                  className={`p-4 rounded-2xl text-xs space-y-1 animate-in fade-in duration-200 ${
+                  className={`p-4 rounded-2xl text-xs space-y-1 animate-in fade-in duration-200 border ${
                     selectedOptionIndex === currentQuestion.correctOptionIndex
-                      ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-900 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/50"
-                      : "bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-300 border border-amber-200 dark:border-amber-900/50"
+                      ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 border-emerald-200 dark:border-emerald-900/50"
+                      : "bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 border-amber-200 dark:border-amber-900/50"
                   }`}
                 >
-                  <span className="font-semibold uppercase tracking-wider block">
+                  <span className="font-bold uppercase tracking-wider block">
                     {selectedOptionIndex === currentQuestion.correctOptionIndex
-                      ? "¡Correcto!"
-                      : "Respuesta correcta:"}
+                      ? "✨ ¡Correcto!"
+                      : "💡 Explicación Formativa:"}
                   </span>
-                  <p>{currentQuestion.explanation}</p>
+                  <p className="leading-relaxed">{currentQuestion.explanation}</p>
                 </div>
               )}
             </div>
@@ -441,23 +445,25 @@ export default function QuizModal({
 
         {/* Footer */}
         {!isVictory && !isGameOver && (
-          <div className="px-6 py-4 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-900/50">
+          <div className="px-6 py-4 border-t border-zinc-200/80 dark:border-zinc-800 flex items-center justify-between bg-white/70 dark:bg-zinc-900/70 backdrop-blur-sm">
             <div className="flex items-center gap-4">
               <button
                 type="button"
                 onClick={onClose}
-                className="text-xs font-medium text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 cursor-pointer transition-colors"
+                className="text-xs font-semibold text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 cursor-pointer transition-colors flex items-center gap-1"
+                title="Pausa el quiz para releer el capítulo"
               >
-                Pausar y salir
+                <span>🔖</span>
+                <span>Pausar y salir</span>
               </button>
               <button
                 type="button"
                 onClick={handleAbandonQuiz}
-                className="text-xs font-medium text-rose-500 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300 flex items-center gap-1 cursor-pointer transition-colors"
+                className="text-xs font-semibold text-rose-500 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300 flex items-center gap-1 cursor-pointer transition-colors"
                 title="Descarta este quiz para reiniciar o cambiar de dificultad"
               >
                 <span>🏳️</span>
-                <span>Abandonar quiz</span>
+                <span>Abandonar</span>
               </button>
             </div>
 
@@ -465,7 +471,7 @@ export default function QuizModal({
               <button
                 type="button"
                 onClick={handleNextQuestion}
-                className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-sm shadow-md transition-all animate-in fade-in duration-150 cursor-pointer"
+                className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-extrabold text-xs sm:text-sm shadow-md hover:shadow-amber-500/25 transition-all animate-in fade-in duration-150 cursor-pointer"
               >
                 {currentQuestionIndex + 1 === totalQuestions
                   ? "Ver Resultados ➔"
