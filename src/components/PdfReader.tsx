@@ -96,8 +96,8 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
     }
   }, []);
 
-  // Read PDF binary data into in-memory ArrayBuffer to guarantee zero network fetches or 'File not found' errors
-  const [pdfData, setPdfData] = useState<ArrayBuffer | null>(null);
+  // Stable memoized file source with Uint8Array to prevent re-opening PDF or detached ArrayBuffer errors on re-renders
+  const [fileSource, setFileSource] = useState<{ data: Uint8Array } | null>(null);
 
   useEffect(() => {
     let isCancelled = false;
@@ -105,7 +105,7 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
       .arrayBuffer()
       .then((buffer) => {
         if (!isCancelled) {
-          setPdfData(buffer);
+          setFileSource({ data: new Uint8Array(buffer) });
         }
       })
       .catch((err) => {
@@ -747,9 +747,9 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
             </div>
           )}
 
-          {pdfData ? (
+          {fileSource ? (
             <Document
-              file={{ data: pdfData }}
+              file={fileSource}
               onLoadSuccess={handleDocumentLoadSuccess}
               loading={DocumentLoadingFallback}
               error={DocumentErrorFallback}
