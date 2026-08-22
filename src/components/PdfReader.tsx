@@ -16,6 +16,7 @@ import {
 } from "@/lib/quizSessionStore";
 import { Chapter } from "@/types/pdf";
 import { QuizQuestion, QuizDifficulty } from "@/types/quiz";
+import { updateBookProgress } from "@/lib/bookStorage";
 import ChapterSidebar from "@/components/ChapterSidebar";
 import PdfNavigation from "@/components/PdfNavigation";
 import PdfViewer from "@/components/PdfViewer";
@@ -100,6 +101,13 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
       URL.revokeObjectURL(url);
     };
   }, [file]);
+
+  // Update book last read page in IndexedDB
+  useEffect(() => {
+    if (currentPage > 0) {
+      updateBookProgress(file.name, currentPage);
+    }
+  }, [currentPage, file.name]);
 
   const {
     chapters,
