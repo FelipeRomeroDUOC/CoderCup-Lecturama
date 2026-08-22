@@ -25,10 +25,11 @@ export const metadata: Metadata = {
     "La plataforma que convierte la lectura en aprendizaje entretenido, donde cada libro esconde un reto.",
   icons: {
     icon: [
-      { url: "/app-icon.png", type: "image/png" },
+      { url: "/app-icon.png?v=2", type: "image/png" },
+      { url: "/favicon.ico?v=2" },
     ],
-    apple: "/app-icon.png",
-    shortcut: "/app-icon.png",
+    shortcut: "/app-icon.png?v=2",
+    apple: "/app-icon.png?v=2",
   },
 };
 
