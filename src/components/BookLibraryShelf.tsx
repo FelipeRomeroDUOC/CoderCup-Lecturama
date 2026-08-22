@@ -216,15 +216,33 @@ export default function BookLibraryShelf({
                 {/* Status Badges on Top */}
                 <div className="absolute top-2 right-2 z-20 flex items-center gap-1">
                   {progress.isCompleted ? (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-400 text-zinc-950 shadow-md border border-amber-300/80 flex items-center gap-1">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-400 text-zinc-950 shadow-md border border-amber-300/80 flex items-center gap-1">
                       <span>🏆</span>
-                      <span>¡Completado!</span>
+                      <span>
+                        {progress.completedCount}/{progress.totalChapters > 0 ? progress.totalChapters : progress.completedCount} ¡Completado!
+                      </span>
                     </span>
                   ) : progress.completedCount > 0 ? (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-600 text-white shadow-md">
-                      ⚔️ {progress.completedCount}{progress.totalChapters > 0 ? `/${progress.totalChapters}` : ""} Niv.
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold text-white shadow-md flex items-center gap-1 ${
+                        progress.percent >= 60
+                          ? "bg-emerald-600"
+                          : progress.percent >= 25
+                          ? "bg-yellow-600"
+                          : "bg-rose-600"
+                      }`}
+                    >
+                      <span>⚔️</span>
+                      <span>
+                        {progress.completedCount}/{progress.totalChapters > 0 ? progress.totalChapters : "?"} Quizes
+                      </span>
                     </span>
-                  ) : null}
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-black/60 text-zinc-300 border border-white/10 shadow-xs flex items-center gap-1 backdrop-blur-xs">
+                      <span>📖</span>
+                      <span>0/{progress.totalChapters > 0 ? progress.totalChapters : "?"} Quizes</span>
+                    </span>
+                  )}
 
                   {/* Delete Button */}
                   <button
@@ -245,25 +263,45 @@ export default function BookLibraryShelf({
                     </p>
                     {authorName && (
                       <p className="text-[10px] text-zinc-300 font-medium truncate drop-shadow-xs mt-0.5 opacity-90">
-                        ✍️ {authorName}
+                        {authorName}
                       </p>
                     )}
                   </div>
 
-                  {/* Progress Bar inside Card */}
-                  {progress.completedCount > 0 && (
-                    <div className="w-full bg-black/60 rounded-full h-1.5 overflow-hidden border border-white/15">
-                      <div
-                        className="bg-amber-400 h-full rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(245,158,11,0.8)]"
-                        style={{ width: `${progress.percent}%` }}
-                      />
-                    </div>
-                  )}
+                  {/* Partial-Fill Progress Bar (Always Visible: Black track + Proportional traffic light fill) */}
+                  <div className="w-full bg-black/85 rounded-full h-1.5 overflow-hidden border border-white/20">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        progress.isCompleted || progress.percent >= 100
+                          ? "bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.85)]"
+                          : progress.percent >= 60
+                          ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.85)]"
+                          : progress.percent >= 25
+                          ? "bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.85)]"
+                          : "bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.85)]"
+                      }`}
+                      style={{ width: `${progress.percent}%` }}
+                    />
+                  </div>
 
                   <div className="flex items-center justify-between text-[10px] text-zinc-300 font-medium pt-0.5">
-                    <span>{book.totalPages ? `${book.totalPages} págs.` : "PDF"}</span>
-                    <span className="text-amber-400 group-hover:translate-x-0.5 transition-transform font-bold">
-                      {progress.percent > 0 ? `${progress.percent}% ➔` : "Abrir ➔"}
+                    <span>
+                      {book.totalPages ? `${book.totalPages} págs.` : "PDF"} • {progress.completedCount}/{progress.totalChapters > 0 ? progress.totalChapters : "?"}
+                    </span>
+                    <span
+                      className={`group-hover:translate-x-0.5 transition-transform font-bold ${
+                        progress.isCompleted || progress.percent >= 100
+                          ? "text-amber-400"
+                          : progress.percent >= 60
+                          ? "text-emerald-400"
+                          : progress.percent >= 25
+                          ? "text-yellow-400"
+                          : progress.percent > 0
+                          ? "text-rose-400"
+                          : "text-zinc-400"
+                      }`}
+                    >
+                      {progress.percent}% ➔
                     </span>
                   </div>
                 </div>
