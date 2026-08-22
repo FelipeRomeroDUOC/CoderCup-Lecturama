@@ -100,15 +100,15 @@ export default function Home() {
           </div>
 
           <div className="inline-flex items-center gap-1.5 px-4 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider bg-amber-100 dark:bg-amber-950/70 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-800/80 shadow-xs mb-4">
-            <span>✨ Manuscrito Vivo & Biblioteca Interactiva</span>
+            <span>📖 Comprensión Lectora Potenciada por IA</span>
           </div>
 
-          <h1 className="font-[family-name:var(--font-outfit)] font-black text-4xl sm:text-6xl md:text-7xl text-zinc-900 dark:text-zinc-100 mb-4 tracking-tight drop-shadow-xs max-w-3xl">
-            Tu Biblioteca, <span className="text-[#D97706] dark:text-[#F59E0B]">Despertada.</span>
+          <h1 className="font-[family-name:var(--font-outfit)] font-black text-4xl sm:text-6xl md:text-7xl text-zinc-900 dark:text-zinc-100 mb-4 tracking-tight drop-shadow-xs max-w-4xl">
+            Aprende más leyendo. <span className="text-[#D97706] dark:text-[#F59E0B]">Juega mientras descubres.</span>
           </h1>
 
-          <p className="font-[family-name:var(--font-patrick-hand)] text-2xl sm:text-3xl text-zinc-700 dark:text-zinc-300 max-w-xl mx-auto mb-10 leading-relaxed">
-            La plataforma que convierte la lectura en aprendizaje entretenido, donde cada libro esconde un reto.
+          <p className="font-[family-name:var(--font-patrick-hand)] text-2xl sm:text-3xl text-zinc-700 dark:text-zinc-300 max-w-2xl mx-auto mb-10 leading-relaxed">
+            La plataforma que convierte cada capítulo en un reto interactivo, ayudándote a conectar ideas, retener detalles y disfrutar la lectura a fondo.
           </p>
 
           {/* Stitch-Designed Book Lectern Dropzone */}
