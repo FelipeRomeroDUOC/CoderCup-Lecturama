@@ -18,6 +18,7 @@ import { Chapter } from "@/types/pdf";
 import { QuizQuestion, QuizDifficulty } from "@/types/quiz";
 import {
   updateBookProgress,
+  updateBookChapterCount,
   extractMetaAndCoverFromPdf,
   saveStoredBook,
 } from "@/lib/bookStorage";
@@ -188,6 +189,13 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
     if (playableChapters.length === 0) return false;
     return playableChapters.every((c) => isChapterCompleted(c.id));
   }, [playableChapters, isChapterCompleted]);
+
+  // Persist total chapters count in IndexedDB
+  useEffect(() => {
+    if (playableChapters.length > 0) {
+      updateBookChapterCount(file.name, playableChapters.length);
+    }
+  }, [playableChapters.length, file.name]);
 
   // Current active chapter object
   const activeChapter = useMemo(() => {

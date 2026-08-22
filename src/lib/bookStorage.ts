@@ -8,6 +8,7 @@ export interface StoredBook {
   fileSize: number;
   coverDataUrl?: string;
   totalPages?: number;
+  totalChapters?: number;
   lastReadPage?: number;
   lastReadAt: number;
   createdAt: number;
@@ -124,6 +125,31 @@ export async function updateBookProgress(
     };
   } catch (err) {
     console.warn("Could not update book progress in IndexedDB:", err);
+  }
+}
+
+/**
+ * Update the total chapters detected for an existing book.
+ */
+export async function updateBookChapterCount(
+  id: string,
+  totalChapters: number
+): Promise<void> {
+  try {
+    const db = await openDB();
+    const transaction = db.transaction(STORE_NAME, "readwrite");
+    const store = transaction.objectStore(STORE_NAME);
+    const getRequest = store.get(id);
+
+    getRequest.onsuccess = () => {
+      const existing = getRequest.result as StoredBook | undefined;
+      if (existing && existing.totalChapters !== totalChapters) {
+        existing.totalChapters = totalChapters;
+        store.put(existing);
+      }
+    };
+  } catch (err) {
+    console.warn("Could not update book chapter count in IndexedDB:", err);
   }
 }
 

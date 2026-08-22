@@ -68,20 +68,37 @@ export default function BookLibraryShelf({
   // Helper to read gamification completion from localStorage
   const getBookProgress = (book: StoredBook) => {
     try {
-      const raw = localStorage.getItem(`codercup_progress_${userId}_${book.fileName}`);
+      const cleanTitle = book.fileName.replace(/\s+/g, "_");
+      const raw = localStorage.getItem(`codercup_${userId}_${cleanTitle}_progress`);
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed.completedChapterIds)) {
+          const completedCount = parsed.completedChapterIds.length;
+          const totalChapters = book.totalChapters || 0;
+          const percent =
+            totalChapters > 0
+              ? Math.min(100, Math.round((completedCount / totalChapters) * 100))
+              : 0;
+          const isCompleted =
+            totalChapters > 0 ? completedCount >= totalChapters : false;
+
           return {
-            completedCount: parsed.completedChapterIds.length,
-            isCompleted: parsed.completedChapterIds.length > 0 && parsed.isAllCompleted,
+            completedCount,
+            totalChapters,
+            percent,
+            isCompleted,
           };
         }
       }
     } catch {
       // Ignore
     }
-    return { completedCount: 0, isCompleted: false };
+    return {
+      completedCount: 0,
+      totalChapters: book.totalChapters || 0,
+      percent: 0,
+      isCompleted: false,
+    };
   };
 
   if (isLoading) {
@@ -180,7 +197,7 @@ export default function BookLibraryShelf({
                     </span>
                   ) : progress.completedCount > 0 ? (
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-600 text-white shadow-md">
-                      ✨ Niv. {progress.completedCount}
+                      ⚔️ {progress.completedCount}{progress.totalChapters > 0 ? `/${progress.totalChapters}` : ""} Niv.
                     </span>
                   ) : null}
 
@@ -196,14 +213,25 @@ export default function BookLibraryShelf({
                 </div>
 
                 {/* Bottom Title & Page Info Inside Card Overlay */}
-                <div className="absolute bottom-0 left-0 right-0 p-3 z-20 text-white space-y-1">
+                <div className="absolute bottom-0 left-0 right-0 p-3 z-20 text-white space-y-1.5">
                   <p className="font-[family-name:var(--font-outfit)] font-extrabold text-xs leading-tight line-clamp-2 drop-shadow-md text-amber-100 group-hover:text-amber-300 transition-colors">
                     {book.displayTitle}
                   </p>
-                  <div className="flex items-center justify-between text-[10px] text-zinc-300 font-medium">
+
+                  {/* Progress Bar inside Card */}
+                  {progress.totalChapters > 0 && progress.completedCount > 0 && (
+                    <div className="w-full bg-black/50 rounded-full h-1 overflow-hidden border border-white/10">
+                      <div
+                        className="bg-amber-400 h-full rounded-full transition-all duration-500"
+                        style={{ width: `${progress.percent}%` }}
+                      />
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between text-[10px] text-zinc-300 font-medium pt-0.5">
                     <span>{book.totalPages ? `${book.totalPages} págs.` : "PDF"}</span>
-                    <span className="text-amber-400 group-hover:translate-x-0.5 transition-transform">
-                      Abrir ➔
+                    <span className="text-amber-400 group-hover:translate-x-0.5 transition-transform font-bold">
+                      {progress.percent > 0 ? `${progress.percent}% ➔` : "Abrir ➔"}
                     </span>
                   </div>
                 </div>
@@ -215,7 +243,11 @@ export default function BookLibraryShelf({
                   {book.displayTitle}
                 </p>
                 <p className="text-[10px] text-zinc-500 dark:text-zinc-400">
-                  {book.lastReadPage && book.lastReadPage > 1
+                  {progress.isCompleted
+                    ? "🏆 100% Conquistado"
+                    : progress.completedCount > 0
+                    ? `${progress.completedCount} de ${progress.totalChapters || progress.completedCount} niveles`
+                    : book.lastReadPage && book.lastReadPage > 1
                     ? `Página ${book.lastReadPage}`
                     : "Comenzar"}
                 </p>
