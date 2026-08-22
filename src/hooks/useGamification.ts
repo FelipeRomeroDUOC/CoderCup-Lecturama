@@ -132,8 +132,9 @@ export function useGamification({
 
   const markChapterCompleted = useCallback(
     (chapterId: string, currentIdx: number) => {
-      // Idempotency guard: do nothing if already marked as completed
-      if (completedChapterIds.includes(chapterId)) {
+      // Guard: do nothing if already marked as completed or if it is a filler chapter
+      const chapter = chapters.find((c) => c.id === chapterId);
+      if (completedChapterIds.includes(chapterId) || (chapter && isFiller(chapter))) {
         return;
       }
 
@@ -144,7 +145,7 @@ export function useGamification({
       setMaxUnlockedIndex(nextUnlocked);
       saveProgress(updatedCompleted, nextUnlocked);
     },
-    [maxUnlockedIndex, completedChapterIds, saveProgress]
+    [chapters, maxUnlockedIndex, completedChapterIds, isFiller, saveProgress]
   );
 
   const resetProgress = useCallback(() => {

@@ -310,24 +310,6 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
     };
   }, [pdfDocument, activeChapter, currentChapterIndex, nonPlayableChapterIds, flattenedChapters]);
 
-  // Auto-unlock non-playable filler chapters
-  useEffect(() => {
-    if (
-      activeChapter &&
-      nonPlayableChapterIds.includes(activeChapter.id) &&
-      !isChapterCompleted(activeChapter.id) &&
-      currentChapterIndex >= 0
-    ) {
-      markChapterCompleted(activeChapter.id, currentChapterIndex);
-    }
-  }, [
-    nonPlayableChapterIds,
-    activeChapter,
-    currentChapterIndex,
-    isChapterCompleted,
-    markChapterCompleted,
-  ]);
-
   // Chapter Navigation Handlers
   const handleSelectChapter = useCallback(
     (chapter: Chapter) => {
