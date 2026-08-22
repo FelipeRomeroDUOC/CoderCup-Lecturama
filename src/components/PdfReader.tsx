@@ -36,6 +36,41 @@ if (typeof window !== "undefined") {
   pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 }
 
+// Robust reader using native FileReader to prevent Stream AbortError on IndexedDB Blobs
+function readBlobToUint8Array(blob: Blob): Promise<Uint8Array> {
+  return new Promise((resolve, reject) => {
+    if (typeof FileReader !== "undefined") {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (reader.result instanceof ArrayBuffer) {
+          resolve(new Uint8Array(reader.result));
+        } else {
+          reject(new Error("Buffer format error"));
+        }
+      };
+      reader.onerror = () => {
+        blob
+          .arrayBuffer()
+          .then((buf) => resolve(new Uint8Array(buf)))
+          .catch(reject);
+      };
+      reader.onabort = () => {
+        blob
+          .arrayBuffer()
+          .then((buf) => resolve(new Uint8Array(buf)))
+          .catch(reject);
+      };
+      reader.readAsArrayBuffer(blob);
+      return;
+    }
+
+    blob
+      .arrayBuffer()
+      .then((buf) => resolve(new Uint8Array(buf)))
+      .catch(reject);
+  });
+}
+
 // Static loading element
 const DocumentLoadingFallback = (
   <div className="flex flex-col items-center justify-center p-24 space-y-4">
@@ -100,20 +135,19 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
   const [fileSource, setFileSource] = useState<{ data: Uint8Array } | null>(null);
 
   useEffect(() => {
-    let isCancelled = false;
-    file
-      .arrayBuffer()
-      .then((buffer) => {
-        if (!isCancelled) {
-          setFileSource({ data: new Uint8Array(buffer) });
+    let isMounted = true;
+    readBlobToUint8Array(file)
+      .then((data) => {
+        if (isMounted) {
+          setFileSource({ data });
         }
       })
       .catch((err) => {
-        console.warn("Could not read PDF arrayBuffer:", err);
+        console.warn("Could not read PDF bytes:", err);
       });
 
     return () => {
-      isCancelled = true;
+      isMounted = false;
     };
   }, [file]);
 
