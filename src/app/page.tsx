@@ -141,7 +141,7 @@ export default function Home() {
                   </span>
                 </h3>
                 <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
-                  Avanza a través de la lectura como una aventura. Desbloquea hitos visuales y capítulos a medida que superas los desafíos de comprensión.
+                  Avanza paso a paso en tu libro. Cada capítulo es un nivel que se desbloquea únicamente al responder con éxito las preguntas del capítulo anterior.
                 </p>
               </div>
             </div>
