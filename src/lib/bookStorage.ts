@@ -1,3 +1,5 @@
+import type { PDFDocumentProxy } from "pdfjs-dist";
+
 export interface StoredBook {
   id: string;
   fileName: string;
@@ -65,30 +67,38 @@ export async function getAllStoredBooks(): Promise<StoredBook[]> {
  * Save or update a book in IndexedDB.
  */
 export async function saveStoredBook(book: StoredBook): Promise<void> {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, "readwrite");
-    const store = transaction.objectStore(STORE_NAME);
-    const request = store.put(book);
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, "readwrite");
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.put(book);
 
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
-  });
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  } catch (err) {
+    console.warn("Error saving book to IndexedDB:", err);
+  }
 }
 
 /**
  * Delete a book from IndexedDB.
  */
 export async function deleteStoredBook(id: string): Promise<void> {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, "readwrite");
-    const store = transaction.objectStore(STORE_NAME);
-    const request = store.delete(id);
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, "readwrite");
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.delete(id);
 
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
-  });
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  } catch (err) {
+    console.warn("Error deleting book from IndexedDB:", err);
+  }
 }
 
 /**
@@ -135,79 +145,59 @@ export function formatFallbackTitle(fileName: string): string {
 }
 
 /**
- * Fast client-side extraction of book title and first-page cover thumbnail.
+ * Safe client-side extraction of book title and first-page cover thumbnail
+ * directly from an already loaded PDFDocumentProxy (zero race conditions).
  */
-export async function extractBookMetaAndCover(file: File): Promise<{
+export async function extractMetaAndCoverFromPdf(
+  pdf: PDFDocumentProxy,
+  fileName: string
+): Promise<{
   displayTitle: string;
   coverDataUrl?: string;
-  totalPages: number;
 }> {
+  let displayTitle = "";
+
+  // 1. Try reading PDF metadata
   try {
-    if (typeof window === "undefined") {
-      return {
-        displayTitle: formatFallbackTitle(file.name),
-        totalPages: 1,
-      };
-    }
-
-    const { pdfjs } = await import("react-pdf");
-    if (!pdfjs.GlobalWorkerOptions.workerSrc) {
-      pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
-    }
-
-    const arrayBuffer = await file.arrayBuffer();
-    const loadingTask = pdfjs.getDocument({
-      data: new Uint8Array(arrayBuffer),
-      useWorkerFetch: false,
-      isEvalSupported: false,
-    });
-    const pdf = await loadingTask.promise;
-    const totalPages = pdf.numPages;
-
-    let displayTitle = "";
-
-    // 1. Try reading PDF metadata
-    try {
-      const metadata = await pdf.getMetadata();
-      const metaTitle = (metadata?.info as Record<string, unknown>)?.Title;
-      if (typeof metaTitle === "string" && metaTitle.trim().length > 2) {
-        // Avoid generic placeholders
-        const trimmed = metaTitle.trim();
-        if (!/^untitled|^document|^microsoft word/i.test(trimmed)) {
-          displayTitle = trimmed;
-        }
+    const metadata = await pdf.getMetadata();
+    const metaTitle = (metadata?.info as Record<string, unknown>)?.Title;
+    if (typeof metaTitle === "string" && metaTitle.trim().length > 2) {
+      const trimmed = metaTitle.trim();
+      if (!/^untitled|^document|^microsoft word/i.test(trimmed)) {
+        displayTitle = trimmed;
       }
-    } catch {
-      // Ignore metadata read error
     }
+  } catch {
+    // Ignore metadata read error
+  }
 
-    // 2. Render Page 1 to canvas for cover thumbnail and text scraping
-    let coverDataUrl: string | undefined = undefined;
-    try {
-      const page1 = await pdf.getPage(1);
+  // 2. Render Page 1 to canvas for cover thumbnail and text scraping
+  let coverDataUrl: string | undefined = undefined;
+  try {
+    const page1 = await pdf.getPage(1);
 
-      // If title not found in metadata, try first page text
-      if (!displayTitle) {
-        try {
-          const textContent = await page1.getTextContent();
-          const items = textContent.items as Array<{ str?: string; height?: number }>;
-          const lines = items
-            .map((it) => it.str?.trim() || "")
-            .filter((str) => str.length > 2 && !/^\d+$|^p[aá]gina/i.test(str));
+    // If title not found in metadata, try first page text
+    if (!displayTitle) {
+      try {
+        const textContent = await page1.getTextContent();
+        const items = textContent.items as Array<{ str?: string }>;
+        const lines = items
+          .map((it) => it.str?.trim() || "")
+          .filter((str) => str.length > 2 && !/^\d+$|^p[aá]gina/i.test(str));
 
-          if (lines.length > 0) {
-            // Take the first prominent 1-2 lines
-            displayTitle = lines.slice(0, 2).join(" ");
-            if (displayTitle.length > 60) {
-              displayTitle = displayTitle.slice(0, 60) + "...";
-            }
+        if (lines.length > 0) {
+          displayTitle = lines.slice(0, 2).join(" ");
+          if (displayTitle.length > 60) {
+            displayTitle = displayTitle.slice(0, 60) + "...";
           }
-        } catch {
-          // Ignore text extraction error
         }
+      } catch {
+        // Ignore text extraction error
       }
+    }
 
-      // Render cover thumbnail
+    // Render cover thumbnail on a canvas
+    if (typeof document !== "undefined") {
       const unscaledViewport = page1.getViewport({ scale: 1.0 });
       const targetWidth = 240;
       const scale = targetWidth / unscaledViewport.width;
@@ -226,25 +216,18 @@ export async function extractBookMetaAndCover(file: File): Promise<{
         }).promise;
         coverDataUrl = canvas.toDataURL("image/jpeg", 0.8);
       }
-    } catch (err) {
-      console.warn("Could not generate page 1 cover thumbnail:", err);
     }
-
-    // 3. Fallback to cleaned filename
-    if (!displayTitle || displayTitle.trim().length < 2) {
-      displayTitle = formatFallbackTitle(file.name);
-    }
-
-    return {
-      displayTitle,
-      coverDataUrl,
-      totalPages,
-    };
   } catch (err) {
-    console.warn("Error in extractBookMetaAndCover:", err);
-    return {
-      displayTitle: formatFallbackTitle(file.name),
-      totalPages: 1,
-    };
+    console.warn("Could not generate page 1 cover thumbnail:", err);
   }
+
+  // 3. Fallback to cleaned filename
+  if (!displayTitle || displayTitle.trim().length < 2) {
+    displayTitle = formatFallbackTitle(fileName);
+  }
+
+  return {
+    displayTitle,
+    coverDataUrl,
+  };
 }

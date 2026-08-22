@@ -6,7 +6,7 @@ import dynamic from "next/dynamic";
 import LecturamaLogo from "@/components/LecturamaLogo";
 import PdfUploader from "@/components/PdfUploader";
 import LibraryFloatingBackground from "@/components/LibraryFloatingBackground";
-import { saveStoredBook, extractBookMetaAndCover } from "@/lib/bookStorage";
+import { saveStoredBook, formatFallbackTitle } from "@/lib/bookStorage";
 
 const BookLibraryShelf = dynamic(() => import("@/components/BookLibraryShelf"), {
   ssr: false,
@@ -31,28 +31,21 @@ export default function Home() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
 
-  const handleFileSelect = async (file: File) => {
+  const handleFileSelect = (file: File) => {
     setSelectedFile(file);
 
-    // Auto-save book to IndexedDB in background
-    try {
-      const meta = await extractBookMetaAndCover(file);
-      await saveStoredBook({
-        id: file.name,
-        fileName: file.name,
-        displayTitle: meta.displayTitle,
-        fileBlob: file,
-        fileSize: file.size,
-        coverDataUrl: meta.coverDataUrl,
-        totalPages: meta.totalPages,
-        lastReadPage: 1,
-        lastReadAt: Date.now(),
-        createdAt: Date.now(),
-      });
-      setRefreshTrigger((prev) => prev + 1);
-    } catch (err) {
-      console.warn("Could not auto-save uploaded book to library:", err);
-    }
+    // Auto-save initial book entry to IndexedDB
+    saveStoredBook({
+      id: file.name,
+      fileName: file.name,
+      displayTitle: formatFallbackTitle(file.name),
+      fileBlob: file,
+      fileSize: file.size,
+      totalPages: 1,
+      lastReadPage: 1,
+      lastReadAt: Date.now(),
+      createdAt: Date.now(),
+    });
   };
 
   const handleCloseReader = () => {

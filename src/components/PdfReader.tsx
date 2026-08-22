@@ -16,7 +16,11 @@ import {
 } from "@/lib/quizSessionStore";
 import { Chapter } from "@/types/pdf";
 import { QuizQuestion, QuizDifficulty } from "@/types/quiz";
-import { updateBookProgress } from "@/lib/bookStorage";
+import {
+  updateBookProgress,
+  extractMetaAndCoverFromPdf,
+  saveStoredBook,
+} from "@/lib/bookStorage";
 import ChapterSidebar from "@/components/ChapterSidebar";
 import PdfNavigation from "@/components/PdfNavigation";
 import PdfViewer from "@/components/PdfViewer";
@@ -125,9 +129,29 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
       if (extractedPdfRef.current !== pdf) {
         extractedPdfRef.current = pdf;
         extractChapters(pdf, pdf.numPages);
+
+        // Extract rich metadata and page 1 cover thumbnail to update IndexedDB entry in background
+        extractMetaAndCoverFromPdf(pdf, file.name)
+          .then((meta) => {
+            saveStoredBook({
+              id: file.name,
+              fileName: file.name,
+              displayTitle: meta.displayTitle,
+              fileBlob: file,
+              fileSize: file.size,
+              coverDataUrl: meta.coverDataUrl,
+              totalPages: pdf.numPages,
+              lastReadPage: 1,
+              lastReadAt: Date.now(),
+              createdAt: Date.now(),
+            });
+          })
+          .catch((err) => {
+            console.warn("Could not save rich book metadata:", err);
+          });
       }
     },
-    [extractChapters]
+    [extractChapters, file]
   );
 
   // Flattened list of chapters for linear navigation (next / previous)
