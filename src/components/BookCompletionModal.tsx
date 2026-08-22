@@ -52,7 +52,7 @@ export default function BookCompletionModal({
           {/* Pedagogical Recognition Card */}
           <div className="p-5 rounded-2xl bg-white/90 dark:bg-[#1F1C19]/90 border border-amber-200/80 dark:border-amber-500/20 text-left space-y-3 shadow-xs">
             <p className="text-xs sm:text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
-              No solo leíste este libro: lo conquistaste con <strong>atención activa</strong>, conectando ideas y reflexionando en cada capítulo. Tu perseverancia y curiosidad han demostrado que leer es una aventura que vale la pena vivir a fondo.
+              No solo leíste este libro: lo conquistaste con <strong>atención activa</strong>, conectando ideas y reflexionando en cada capítulo. Tu perseverancia y curiosidad han demostrado que leer es una aventura que vale la pena vivir a fondo. <strong>Cada nuevo libro es un mundo por descubrir: anímate a subir otra obra y mantén encendida tu pasión lectora.</strong>
             </p>
 
             <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between text-xs font-semibold text-zinc-500 dark:text-zinc-400">
