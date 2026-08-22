@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Versión](https://img.shields.io/badge/versión-1.0.0--beta.3-amber?style=for-the-badge)
+![Versión](https://img.shields.io/badge/versión-1.0.0--beta.4-amber?style=for-the-badge)
 ![Estado](https://img.shields.io/badge/estado-beta%20pública-emerald?style=for-the-badge)
 ![Next.js](https://img.shields.io/badge/Next.js-16.3-black?style=for-the-badge&logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)
@@ -20,7 +20,7 @@
 
 **LECTURAMA** es un lector de libros en formato PDF gamificado que transforma la experiencia de lectura tradicional en un videojuego de aprendizaje.
 
-El libro se divide automáticamente en capítulos que funcionan como **niveles progresivos**: para desbloquear y avanzar al siguiente capítulo, el lector debe superar un **desafío de comprensión lectora de 5 preguntas formuladas por Inteligencia Artificial (Google Gemini)** basado exactamente en las páginas que acaba de leer.
+El libro se divide automáticamente en capítulos que funcionan como **niveles progresivos**: para desbloquear y avanzar al siguiente capítulo, el lector debe superar un **desafío de comprensión lectora de 8 preguntas formuladas por Inteligencia Artificial (Google Gemini)** basado exactamente en las páginas que acaba de leer.
 
 ---
 
@@ -31,20 +31,25 @@ El libro se divide automáticamente en capítulos que funcionan como **niveles p
   - Totalmente adaptado para pantallas móviles, tablets y ordenadores de escritorio.
 - 🎯 **Gamificación por Niveles y Bloqueo de Capítulos**:
   - Los capítulos siguientes permanecen bloqueados (`🔒`) hasta superar el quiz del nivel actual.
-  - Las secciones introductorias (portadas, prólogos, índices) se detectan automáticamente y quedan libres para lectura inicial.
+  - Las secciones introductorias (portadas, dedicatorias, notas biográficas) se clasifican con IA y quedan libres para lectura inicial.
 - 🧠 **Desafíos Pedagógicos con IA (Google Gemini)**:
-  - Generación bajo demanda (solo cuando el lector termina un capítulo).
-  - 5 preguntas de opción múltiple estructuradas con explicaciones formativas inmediatas.
-  - **Dificultad Adaptativa**:
-    - 🧒 **Básica**: Niños (8 a 12 años) — Vocabulario simple y preguntas directas.
-    - 🧑‍🎓 **Media**: Jóvenes (13 a 17 años) — Análisis y vocabulario estándar.
-    - 🎓 **Avanzada**: Adultos — Preguntas profundas, inferenciales y de síntesis.
-- ❤️ **Sistema de 3 Vidas y Flexibilidad**:
-  - 3 vidas por nivel. Si pierdes todas las vidas, puedes reintentar el desafío.
+  - Generación bajo demanda en **~2.8 segundos** (solo cuando el lector termina un capítulo).
+  - **8 preguntas de opción múltiple** estructuradas con distractores psicométricos de alta verosimilitud y explicaciones formativas inmediatas.
+  - Adaptabilidad para textos **narrativos** y **expositivos/argumentativos**.
+  - **3 Niveles de Dificultad Calibrada**:
+    - 🧒 **Básica**: Niños (8 a 12 años) — Vocabulario claro y foco en emociones, motivos y moralejas.
+    - 🧑‍🎓 **Media**: Jóvenes (13 a 17 años) — Análisis de conflicto, inferencia, causa-efecto y contexto.
+    - 🎓 **Avanzada**: Adultos — Dilemas morales, subtexto, causalidad y evaluación crítica.
+- ❤️ **Sistema de 4 Vidas y Metacognición**:
+  - **4 vidas** independientes por nivel (`❤️❤️❤️❤️`).
+  - Al completar o finalizar el quiz, entrega un **diagnóstico pedagógico** y **💡 Tips de Atención Lectora** graduados según las vidas restantes (4, 3, 2, 1, 0) para entrenar la concentración y el foco lector.
   - Botón **"Pausar y salir"**: Guarda el progreso de preguntas y vidas para releer el texto sin reiniciar el quiz.
   - Botón **"🏳️ Abandonar quiz"**: Permite descartar el intento para cambiar la dificultad o generar preguntas nuevas.
+- 📜 **Changelog Sincronizado en Tiempo Real**:
+  - Pantalla interactiva en `/changelog` que consulta directamente los commits y versiones de la rama `main` en GitHub.
 - ⚡ **Resiliencia y Fast-Fallback**:
-  - Conmutación automática e instantánea a modelos ultra-rápidos (`gemini-3.5-flash-lite`) ante picos de demanda (errores 503/429) o timeouts.
+  - Modelo ultra-rápido `gemini-3.5-flash-lite` (~2.8s) con respaldo en `gemini-3.6-flash`.
+  - Configuración de políticas de seguridad permisivas (`BLOCK_NONE`) para evitar falsos positivos en textos de ficción o dramáticos.
 - 💾 **Persistencia Unificada por UUID**:
   - Todo el progreso de lectura, niveles desbloqueados y estado del quiz se asocia a un UUID de sesión anónima en `localStorage` (sin necesidad de registro previo).
 
@@ -55,9 +60,9 @@ El libro se divide automáticamente en capítulos que funcionan como **niveles p
 ```mermaid
 graph LR
     A[📄 Sube tu PDF] --> B[📖 Lee el Capítulo Actual]
-    B --> C[🎯 Inicia el Desafío con IA]
+    B --> C[🎯 Inicia el Desafío de 8 Preguntas]
     C --> D{¿Superas el Quiz con ❤️?}
-    D -- Sí --> E[🔓 Desbloquea el Siguiente Nivel]
+    D -- Sí --> E[🔓 Desbloquea Nivel + Tip de Foco]
     D -- No --> F[🔄 Reintenta o Relee el Capítulo]
     F --> C
     E --> B
@@ -66,7 +71,7 @@ graph LR
 1. **Sube tu libro**: Arrastra o selecciona cualquier archivo PDF.
 2. **Lee a tu ritmo**: Navega por las páginas del capítulo con el visor continuo.
 3. **Supera el reto**: Al final del capítulo, pulsa **"Comenzar Quiz del Nivel"**.
-4. **Desbloquea el siguiente capítulo**: Responde correctamente conservando tus vidas para continuar tu viaje de lectura.
+4. **Desbloquea el siguiente capítulo**: Responde correctamente las 8 preguntas conservando tus vidas para avanzar.
 
 ---
 
@@ -75,8 +80,8 @@ graph LR
 - **Framework**: [Next.js 16 (App Router)](https://nextjs.org/) con motor Turbopack.
 - **Lenguaje**: [TypeScript](https://www.typescriptlang.org/) con tipado estricto.
 - **Inteligencia Artificial**: [Google Gen AI SDK (`@google/genai`)](https://aistudio.google.com/)
-  - Modelo Principal de Quiz: `gemini-3.5-flash`
-  - Modelo de Respaldo Ultra-Rápido: `gemini-3.5-flash-lite`
+  - Modelo Principal de Quiz: `gemini-3.5-flash-lite` (generación en ~2.8s)
+  - Modelo de Respaldo: `gemini-3.6-flash` (generación profunda)
   - Clasificador de Secciones: `gemma-4-31b-it`
 - **Renderizado de PDFs**: [React-PDF](https://github.com/wojtekmaj/react-pdf) y `pdfjs-dist`.
 - **Estilos y Tipografía**: [Tailwind CSS](https://tailwindcss.com/) + Google Fonts (**Outfit** y **Patrick Hand**).
@@ -128,7 +133,7 @@ Abre tu navegador en [http://localhost:3000](http://localhost:3000) para ver la 
 ## 📁 Estructura del Proyecto
 
 ```text
-├── docs/                     # Registro de las tareas técnicas del proyecto
+├── docs/                     # Registro de las 74 tareas técnicas del proyecto
 ├── src/
 │   ├── app/
 │   │   ├── api/
@@ -137,11 +142,12 @@ Abre tu navegador en [http://localhost:3000](http://localhost:3000) para ver la 
 │   │   │   │   └── questions/# Generador y caché de preguntas con IA
 │   │   │   ├── dev/reset/    # Herramienta de reset para desarrollo
 │   │   │   └── session/      # Endpoint de sesión anónima
+│   │   ├── changelog/        # Página de Changelog sincronizada con GitHub
 │   │   ├── layout.tsx        # Layout principal y configuración de fuentes
 │   │   └── page.tsx          # Landing page principal de LECTURAMA
 │   ├── components/           # Componentes de UI (Lector, Visor, Sidebar, Quiz)
 │   ├── hooks/                # Hooks personalizados (useChapters, useGamification)
-│   ├── lib/                  # Lógica de IA (Gemini), sesión, PDFs y almacenamiento
+│   ├── lib/                  # Lógica de IA (Gemini), sesión, PDFs, GitHub y feedback
 │   └── types/                # Definiciones de tipos TypeScript
 ├── CHANGELOG.md              # Registro histórico de versiones
 └── package.json
