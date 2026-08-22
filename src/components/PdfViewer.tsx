@@ -19,6 +19,9 @@ interface PdfViewerProps {
   isNonPlayable?: boolean;
   hasActiveQuizSession?: boolean;
   quizSessionInfo?: { currentQuestion: number; totalQuestions: number; lives: number } | null;
+  isAllBookCompleted?: boolean;
+  onOpenBookCelebration?: () => void;
+  onChooseNewBook?: () => void;
   onNextChapter?: () => void;
   onPrevChapter?: () => void;
   onStartQuiz?: () => void;
@@ -47,6 +50,9 @@ function PdfViewerComponent({
   isNonPlayable = false,
   hasActiveQuizSession = false,
   quizSessionInfo,
+  isAllBookCompleted = false,
+  onOpenBookCelebration,
+  onChooseNewBook,
   onNextChapter,
   onPrevChapter,
   onStartQuiz,
@@ -188,6 +194,8 @@ function PdfViewerComponent({
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-100 dark:bg-amber-950/70 text-amber-900 dark:text-amber-300 border border-amber-200 dark:border-amber-800/80 shadow-xs">
               {isPreliminary
                 ? "📖 Sección Informativa"
+                : isAllBookCompleted || (!hasNextChapter && isCurrentChapterCompleted)
+                ? "🏆 ¡Libro Conquistado con Éxito!"
                 : isCurrentChapterCompleted
                 ? "✅ Capítulo Superado con Honores"
                 : hasActiveQuizSession
@@ -202,6 +210,8 @@ function PdfViewerComponent({
             <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 max-w-md mx-auto leading-relaxed">
               {isPreliminary
                 ? "Has terminado de ver esta sección preliminar. Puedes avanzar libremente al primer capítulo del libro."
+                : isAllBookCompleted || (!hasNextChapter && isCurrentChapterCompleted)
+                ? "¡Felicitaciones! Has completado y superado todos los niveles de este libro con lectura activa y pensamiento crítico."
                 : isCurrentChapterCompleted
                 ? "Ya has superado este capítulo. Puedes releerlo libremente o continuar tu camino."
                 : hasActiveQuizSession && quizSessionInfo
@@ -247,8 +257,8 @@ function PdfViewerComponent({
                 <span>
                   {hasActiveQuizSession
                     ? quizSessionInfo
-                      ? `Continuar Quiz del Nivel (${quizSessionInfo.currentQuestion}/${quizSessionInfo.totalQuestions})`
-                      : "Continuar Quiz del Nivel"
+                    ? `Continuar Quiz del Nivel (${quizSessionInfo.currentQuestion}/${quizSessionInfo.totalQuestions})`
+                    : "Continuar Quiz del Nivel"
                     : "Comenzar Desafío del Nivel"}
                 </span>
               </button>
@@ -262,6 +272,18 @@ function PdfViewerComponent({
                 className="px-6 py-2.5 text-xs sm:text-sm font-bold rounded-xl bg-emerald-600 text-white hover:bg-emerald-500 shadow-md transition-all flex items-center gap-2 cursor-pointer"
               >
                 <span>Siguiente Capítulo ➔</span>
+              </button>
+            )}
+
+            {/* All Book completed: Choose new book button */}
+            {!isPreliminary && (!hasNextChapter || isAllBookCompleted) && isCurrentChapterCompleted && (onChooseNewBook || onOpenBookCelebration) && (
+              <button
+                type="button"
+                onClick={onOpenBookCelebration || onChooseNewBook}
+                className="px-6 py-3 text-xs sm:text-sm font-extrabold rounded-xl bg-zinc-900 hover:bg-amber-600 text-white dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-amber-400 shadow-xl transition-all flex items-center gap-2 cursor-pointer"
+              >
+                <span>🏆</span>
+                <span>Ver Celebración & Elegir Libro</span>
               </button>
             )}
           </div>

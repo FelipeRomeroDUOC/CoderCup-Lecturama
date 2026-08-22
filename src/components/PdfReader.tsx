@@ -20,6 +20,7 @@ import ChapterSidebar from "@/components/ChapterSidebar";
 import PdfNavigation from "@/components/PdfNavigation";
 import PdfViewer from "@/components/PdfViewer";
 import QuizModal from "@/components/QuizModal";
+import BookCompletionModal from "@/components/BookCompletionModal";
 import LecturamaLogo from "@/components/LecturamaLogo";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
@@ -65,12 +66,12 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
 
   // Dynamic set of chapter IDs detected as non-playable filler
   const [nonPlayableChapterIds, setNonPlayableChapterIds] = useState<string[]>([]);
-
   // Quiz state
   const [isQuizOpen, setIsQuizOpen] = useState<boolean>(false);
   const [isLoadingQuiz, setIsLoadingQuiz] = useState<boolean>(false);
   const [quizError, setQuizError] = useState<string | null>(null);
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
+  const [isBookCelebrationOpen, setIsBookCelebrationOpen] = useState<boolean>(false);
 
   // Initialize client user ID on mount
   useEffect(() => {
@@ -148,6 +149,20 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
     bookTitle: file.name,
     nonPlayableChapterIds,
   });
+
+  // Filter playable chapters vs fillers
+  const playableChapters = useMemo(() => {
+    return flattenedChapters.filter(
+      (c) =>
+        !isPreliminarySection(c.title) &&
+        !nonPlayableChapterIds.includes(c.id)
+    );
+  }, [flattenedChapters, nonPlayableChapterIds]);
+
+  const isAllBookCompleted = useMemo(() => {
+    if (playableChapters.length === 0) return false;
+    return playableChapters.every((c) => isChapterCompleted(c.id));
+  }, [playableChapters, isChapterCompleted]);
 
   // Current active chapter object
   const activeChapter = useMemo(() => {
@@ -443,8 +458,25 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
   const handleQuizSuccess = useCallback(() => {
     if (activeChapter) {
       markChapterCompleted(activeChapter.id, currentChapterIndex);
+
+      // Check if this victory completes all playable chapters in the book
+      const remainingUncompleted = playableChapters.filter(
+        (c) => c.id !== activeChapter.id && !isChapterCompleted(c.id)
+      );
+
+      if (remainingUncompleted.length === 0 && playableChapters.length > 0) {
+        setTimeout(() => {
+          setIsBookCelebrationOpen(true);
+        }, 500);
+      }
     }
-  }, [activeChapter, currentChapterIndex, markChapterCompleted]);
+  }, [
+    activeChapter,
+    currentChapterIndex,
+    markChapterCompleted,
+    playableChapters,
+    isChapterCompleted,
+  ]);
 
   const handleAdvanceToNextChapter = useCallback(() => {
     if (
@@ -477,6 +509,7 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
       setNonPlayableChapterIds([]);
       setQuizQuestions([]);
       setIsQuizOpen(false);
+      setIsBookCelebrationOpen(false);
       setQuizError(null);
       refreshQuizSession();
 
@@ -690,6 +723,9 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
                       }
                       hasActiveQuizSession={hasActiveQuizSession}
                       quizSessionInfo={quizSessionInfo}
+                      isAllBookCompleted={isAllBookCompleted}
+                      onOpenBookCelebration={() => setIsBookCelebrationOpen(true)}
+                      onChooseNewBook={onClose}
                       onNextChapter={handleNextChapter}
                       onPrevChapter={handlePrevChapter}
                       onStartQuiz={handleStartQuiz}
@@ -766,6 +802,15 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
           onAdvanceToNextChapter={handleAdvanceToNextChapter}
         />
       )}
+
+      {/* Book Completion Celebration Modal */}
+      <BookCompletionModal
+        isOpen={isBookCelebrationOpen}
+        onClose={() => setIsBookCelebrationOpen(false)}
+        onChooseNewBook={onClose}
+        bookTitle={file.name}
+        totalChapters={playableChapters.length}
+      />
     </div>
   );
 }
