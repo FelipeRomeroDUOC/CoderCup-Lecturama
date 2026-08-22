@@ -95,17 +95,6 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
     }
   }, []);
 
-  // Create a stable Blob URL for the file to prevent FileReader churn in react-pdf
-  const [fileUrl, setFileUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    const url = URL.createObjectURL(file);
-    setFileUrl(url);
-    return () => {
-      URL.revokeObjectURL(url);
-    };
-  }, [file]);
-
   // Update book last read page in IndexedDB
   useEffect(() => {
     if (currentPage > 0) {
@@ -728,13 +717,12 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
             </div>
           )}
 
-          {fileUrl && (
-            <Document
-              file={fileUrl}
-              onLoadSuccess={handleDocumentLoadSuccess}
-              loading={DocumentLoadingFallback}
-              error={DocumentErrorFallback}
-            >
+          <Document
+            file={file}
+            onLoadSuccess={handleDocumentLoadSuccess}
+            loading={DocumentLoadingFallback}
+            error={DocumentErrorFallback}
+          >
               {pdfDocument && (
                 <main className="flex-1 pb-24">
                   {isLoadingChapters || (chapters.length === 0 && hasOutline === null) ? (
@@ -789,7 +777,6 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
                 </main>
               )}
             </Document>
-          )}
 
           {/* Sticky Bottom Navigation Bar */}
           {pdfDocument && (
