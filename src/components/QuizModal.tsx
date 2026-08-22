@@ -7,6 +7,7 @@ import {
   saveQuizSession,
   clearQuizSession,
 } from "@/lib/quizSessionStore";
+import { getQuizCompletionFeedback } from "@/lib/quizFeedback";
 
 interface QuizModalProps {
   isOpen: boolean;
@@ -230,65 +231,119 @@ export default function QuizModal({
         {/* Main Body */}
         <div className="p-6 overflow-y-auto flex-1 space-y-6">
           {/* Victory Screen */}
-          {isVictory ? (
-            <div className="text-center py-6 space-y-5 animate-in zoom-in-95 duration-200">
-              <div className="text-6xl animate-bounce">🏆</div>
-              <div className="space-y-2">
-                <h3 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-                  ¡Nivel Superado con Éxito!
-                </h3>
-                <p className="text-sm text-zinc-600 dark:text-zinc-400 max-w-md mx-auto">
-                  Has demostrado una excelente comprensión de este capítulo y has
-                  conservado <span className="font-semibold text-rose-500">{lives} {lives === 1 ? "vida" : "vidas"}</span>.
-                </p>
-                <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                  🔓 El siguiente capítulo ha sido desbloqueado permanentemente.
-                </p>
-              </div>
+          {isVictory ? (() => {
+            const feedback = getQuizCompletionFeedback(lives);
+            const medal = lives === 4 ? "🏆" : lives === 3 ? "🥈" : lives === 2 ? "🥉" : "🎯";
 
-              <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
-                <button
-                  type="button"
-                  onClick={handleVictoryContinue}
-                  className="w-full sm:w-auto px-6 py-3 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-500 shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <span>Continuar Lectura ➔</span>
-                </button>
-              </div>
-            </div>
-          ) : isGameOver ? (
-            /* Game Over Screen */
-            <div className="text-center py-6 space-y-5 animate-in zoom-in-95 duration-200">
-              <div className="text-6xl">💀</div>
-              <div className="space-y-2">
-                <h3 className="text-2xl font-bold text-rose-600 dark:text-rose-400">
-                  ¡Te has quedado sin vidas!
-                </h3>
-                <p className="text-sm text-zinc-600 dark:text-zinc-400 max-w-md mx-auto">
-                  No te preocupes, puedes volver a repasar el texto del capítulo o
-                  reintentar el quiz ahora mismo con las 3 vidas restauradas.
-                </p>
-              </div>
+            return (
+              <div className="text-center py-2 space-y-4 animate-in zoom-in-95 duration-200">
+                <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-50 text-amber-900 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-200 dark:border-amber-800/80 shadow-xs">
+                  {feedback.badge}
+                </div>
 
-              <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
-                <button
-                  type="button"
-                  onClick={handleRetryQuiz}
-                  className="w-full sm:w-auto px-6 py-3 rounded-xl bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-semibold hover:bg-zinc-800 dark:hover:bg-zinc-200 shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <span>🔄</span>
-                  <span>Reintentar Quiz (3 Vidas)</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="w-full sm:w-auto px-5 py-3 rounded-xl border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-medium transition-all cursor-pointer"
-                >
-                  Volver al Lector
-                </button>
+                <div className="space-y-1">
+                  <div className="text-5xl my-1 animate-bounce">{medal}</div>
+                  <h3 className="text-2xl font-extrabold text-zinc-900 dark:text-zinc-100 tracking-tight">
+                    {feedback.title}
+                  </h3>
+                  <div className="text-sm font-semibold text-rose-500 tracking-widest pt-0.5">
+                    {feedback.heartsDisplay}
+                  </div>
+                  <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 pt-0.5">
+                    🔓 ¡Capítulo superado y desbloqueado permanentemente!
+                  </p>
+                </div>
+
+                {/* Diagnostic & Comprehension message */}
+                <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200/80 dark:border-zinc-700/60 text-left space-y-1.5">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                    Diagnóstico de Comprensión:
+                  </div>
+                  <p className="text-xs sm:text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
+                    {feedback.diagnostic}
+                  </p>
+                </div>
+
+                {/* Focus / Attention Tip Box */}
+                <div className="p-4 rounded-2xl bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900/60 text-left space-y-1.5 shadow-xs">
+                  <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300">
+                    <span>💡 Tip de Enfoque y Atención Lectora</span>
+                  </div>
+                  <p className="text-xs sm:text-sm text-indigo-950 dark:text-indigo-200/90 leading-relaxed">
+                    {feedback.focusTip}
+                  </p>
+                </div>
+
+                <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleVictoryContinue}
+                    className="w-full sm:w-auto px-7 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-md hover:shadow-emerald-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <span>Continuar al Siguiente Capítulo ➔</span>
+                  </button>
+                </div>
               </div>
-            </div>
-          ) : (
+            );
+          })() : isGameOver ? (() => {
+            const feedback = getQuizCompletionFeedback(0);
+
+            return (
+              <div className="text-center py-2 space-y-4 animate-in zoom-in-95 duration-200">
+                <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bg-rose-50 text-rose-900 dark:bg-rose-950/70 dark:text-rose-300 border border-rose-200 dark:border-rose-800/80 shadow-xs">
+                  {feedback.badge}
+                </div>
+
+                <div className="space-y-1">
+                  <div className="text-5xl my-1">💔</div>
+                  <h3 className="text-2xl font-extrabold text-rose-600 dark:text-rose-400 tracking-tight">
+                    {feedback.title}
+                  </h3>
+                  <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                    {feedback.subtitle}
+                  </p>
+                </div>
+
+                {/* Diagnostic */}
+                <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200/80 dark:border-zinc-700/60 text-left space-y-1.5">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                    Diagnóstico de Comprensión:
+                  </div>
+                  <p className="text-xs sm:text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
+                    {feedback.diagnostic}
+                  </p>
+                </div>
+
+                {/* Focus / Attention Tip Box */}
+                <div className="p-4 rounded-2xl bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 text-left space-y-1.5 shadow-xs">
+                  <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300">
+                    <span>💡 Tip de Enfoque y Atención Lectora</span>
+                  </div>
+                  <p className="text-xs sm:text-sm text-amber-950 dark:text-amber-200/90 leading-relaxed">
+                    {feedback.focusTip}
+                  </p>
+                </div>
+
+                <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleRetryQuiz}
+                    className="w-full sm:w-auto px-6 py-3 rounded-xl bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-bold hover:bg-zinc-800 dark:hover:bg-zinc-200 shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <span>🔄</span>
+                    <span>Reintentar Quiz (4 Vidas)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="w-full sm:w-auto px-5 py-3 rounded-xl border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-semibold transition-all cursor-pointer"
+                  >
+                    Volver al Lector
+                  </button>
+                </div>
+              </div>
+            );
+          })() : (
             /* Active Question Screen */
             <div className="space-y-5">
               {/* Question Counter */}
