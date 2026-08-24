@@ -38,11 +38,11 @@ const EDUCATIONAL_SAFETY_SETTINGS = [
 
 // Fixed model configurations
 const QUESTIONS_PRIMARY_MODEL = "gemini-3.5-flash-lite";
-const QUESTIONS_FALLBACK_MODEL = "gemini-3.6-flash";
+const QUESTIONS_FALLBACK_MODEL = "gemini-3.1-flash-lite";
 const QUESTIONS_CANDIDATE_MODELS = [QUESTIONS_PRIMARY_MODEL, QUESTIONS_FALLBACK_MODEL];
 
 const CLASSIFY_PRIMARY_MODEL = "gemma-4-31b-it";
-const CLASSIFY_FALLBACK_MODEL = "gemini-3.5-flash-lite";
+const CLASSIFY_FALLBACK_MODEL = "gemini-3.1-flash-lite";
 const CLASSIFY_CANDIDATE_MODELS = [CLASSIFY_PRIMARY_MODEL, CLASSIFY_FALLBACK_MODEL];
 
 // Calibrated timeouts per task
@@ -341,9 +341,8 @@ function buildCalibratedSystemInstruction(
   }
 
   return `Eres un docente y pedagogo experto en comprensión lectora y gamificación.
-Tu objetivo es formular un desafío de COMPRENSIÓN LECTORA de exactamente 8 preguntas adaptado para el capítulo${
-    chapterTitle ? ` titulado "${chapterTitle}"` : ""
-  }.
+Tu objetivo es formular un desafío de COMPRENSIÓN LECTORA de exactamente 8 preguntas adaptado para el capítulo${chapterTitle ? ` titulado "${chapterTitle}"` : ""
+    }.
 
 Antes de generar las preguntas, determina si el texto es de tipo NARRATIVO/DRAMÁTICO (tiene personajes, trama, diálogos) o EXPOSITIVO/ARGUMENTATIVO (desarrolla ideas, datos, una postura o argumento). Si es expositivo/argumentativo, adapta el enfoque de cada pregunta reemplazando referencias a "personajes" y "trama" por "ideas", "argumentos" y "postura del autor", manteniendo el mismo tipo de razonamiento exigido por cada punto del nivel.
 
@@ -528,9 +527,8 @@ export async function generateChapterQuiz(
     }
   }
 
-  throw lastError instanceof Error
-    ? lastError
-    : new Error(
-        "Los modelos de IA de Google están experimentando alta demanda temporal. Por favor reintenta en unos instantes."
-      );
+  console.error("Todos los modelos de generación de preguntas fallaron:", lastError);
+  throw new Error(
+    "Gemini ha tardado demasiado en responder, intenta generar el quiz nuevamente."
+  );
 }

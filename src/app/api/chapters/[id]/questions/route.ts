@@ -97,10 +97,17 @@ export async function POST(
       questions,
     });
   } catch (error) {
-    console.error("Error en POST /api/chapters/[id]/questions:", error);
+    let errorMessage =
+      "Gemini ha tardado demasiado en responder, intenta generar el quiz nuevamente.";
 
-    const errorMessage =
-      error instanceof Error ? error.message : "Error interno al generar preguntas.";
+    if (error instanceof Error && error.message) {
+      if (
+        error.message.includes("identificador") ||
+        error.message.includes("texto del capítulo")
+      ) {
+        errorMessage = error.message;
+      }
+    }
 
     return NextResponse.json(
       { error: errorMessage },
