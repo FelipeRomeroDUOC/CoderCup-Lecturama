@@ -7,6 +7,27 @@ y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ---
 
+## [1.0.0-beta.7] - 2026-08-24
+
+Séptima versión beta que introduce la nueva identidad de marca oficial con favicon interactivo, resiliencia de IA con Gemini 3.1 Flash Lite y mensajes amigables al usuario.
+
+### ✨ Añadido (Added)
+- **Nuevo Emblema e Ícono Oficial de Marca**:
+  - Libro abierto en bronce metálico con estrella de 8 puntas y halo de iluminación dorada en la interfaz principal, barra de navegación, hero y pantallas de carga.
+  - Configuración definitiva de favicon de navegador (`/app-icon.png` y `/favicon.ico`) con forzado de actualización (*cache-busting*).
+- **Modelo de Respaldo de Alta Cuota (`gemini-3.1-flash-lite`)**:
+  - Integración de `gemini-3.1-flash-lite` como fallback de generación de quizes y clasificación de capítulos, garantizando 500 solicitudes por día (RPD) en la capa gratuita.
+- **Mensaje Amigable y Transparente al Usuario**:
+  - Captura unificada de timeouts, límites de cuota (`429`) y congestión de servidores (`503`), mostrando de forma amigable: *"Gemini ha tardado demasiado en responder, intenta generar el quiz nuevamente."*
+- **Visualizador de Changelog en Español**:
+  - La ruta `/changelog` ahora procesa directamente este archivo `CHANGELOG.md` con línea de tiempo y categorías visuales.
+
+### 🛡️ Corregido (Fixed)
+- **Sanitización de Progreso en Estantería de Libros**:
+  - Purga automática de secciones preliminares y no jugables (portadas, dedicatorias) en el conteo de quizes aprobados en `localStorage`.
+
+---
+
 ## [1.0.0-beta.6] - 2026-08-22
 
 Versión mayor que introduce la persistencia local de manuscritos, la Estantería de Libros interactiva en 3D y la celebración de libros completados.

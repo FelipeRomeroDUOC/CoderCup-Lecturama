@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Versión](https://img.shields.io/badge/versión-1.0.0--beta.6-amber?style=for-the-badge)
+![Versión](https://img.shields.io/badge/versión-1.0.0--beta.7-amber?style=for-the-badge)
 ![Estado](https://img.shields.io/badge/estado-beta%20pública-emerald?style=for-the-badge)
 ![Next.js](https://img.shields.io/badge/Next.js-16.3-black?style=for-the-badge&logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)
@@ -26,6 +26,11 @@ El libro se divide automáticamente en capítulos que funcionan como **niveles p
 
 ## ✨ Características Principales
 
+- 🏛️ **Identidad Visual "Manuscrito Vivo" (Diseñada con Google Stitch)**:
+  - **Emblema e Isotipo Oficial**: Libro abierto en bronce metálico con estrella de 8 puntas y halo dorado reflectivo.
+  - **Fondo animado en gravedad cero**: Libros flotantes, plumas, pergaminos y destellos sobre grafito cálido (`#0E0D0C`) con halos dorados.
+  - **Atril de lectura táctil**: Dropzone con resplandor dorado ambiental (`gold-glow`) y micro-animaciones.
+  - **Escritorio de lectura inmersivo**: Visor con iluminación de lámpara y hojas con sombra multicapa envolvente.
 - 📚 **Mi Estantería de Libros (Biblioteca Persistente en IndexedDB)**:
   - **Tomos de libros en 3D**: Portadas reales extraídas de la primera página con textura de lomo y animación de gravedad cero al posar el cursor (*hover*).
   - **Detección multinivel de Título y Autor**: Extracción inteligente desde metadatos PDF, líneas de portada y patrones en el nombre de archivo.
@@ -34,11 +39,6 @@ El libro se divide automáticamente en capítulos que funcionan como **niveles p
   - **Persistencia local completa**: Los archivos PDF se conservan en la base de datos `IndexedDB` del navegador para reanudar la lectura sin volver a subirlos.
 - 🏆 **Celebración de Libro Conquistado ("Maestría Lectora Alcanzada")**:
   - Modal festivo al completar el 100% de los quizes de una obra, con medalla dorada e incentivo pedagógico personalizado para inspirar al usuario a comenzar un nuevo libro.
-- 🏛️ **Identidad Visual "Manuscrito Vivo" (Diseñada con Google Stitch)**:
-  - **Fondo animado en gravedad cero**: Libros flotantes, plumas, pergaminos y destellos sobre grafito cálido (`#0E0D0C`) con halos dorados.
-  - **Atril de lectura táctil**: Dropzone con resplandor dorado ambiental (`gold-glow`) y micro-animaciones.
-  - **Escritorio de lectura inmersivo**: Visor con iluminación de lámpara y hojas con sombra multicapa envolvente.
-  - **Isotipo Oficial SVG**: Monograma de libro abierto con halo de conocimiento.
 - 📖 **Visor Continuo de PDFs**:
   - Lectura vertical fluida con carga optimizada página por página mediante `Uint8Array` en memoria RAM directa (inmune a fallos de red local).
   - Totalmente adaptado para pantallas móviles, tablets y ordenadores de escritorio.
@@ -58,10 +58,11 @@ El libro se divide automáticamente en capítulos que funcionan como **niveles p
   - Al completar o finalizar el quiz, entrega un **diagnóstico pedagógico** y **💡 Tips de Atención Lectora** graduados según las vidas restantes (4, 3, 2, 1, 0) para entrenar la concentración y el foco lector.
   - Botón **"Pausar y salir"**: Guarda el progreso de preguntas y vidas para releer el texto sin reiniciar el quiz.
   - Botón **"🏳️ Abandonar quiz"**: Permite descartar el intento para cambiar la dificultad o generar preguntas nuevas.
-- 📜 **Changelog Sincronizado en Tiempo Real**:
-  - Pantalla interactiva en `/changelog` que consulta directamente los commits y versiones de la rama `main` en GitHub.
-- ⚡ **Resiliencia y Fast-Fallback**:
-  - Modelo ultra-rápido `gemini-3.5-flash-lite` (~2.8s) con respaldo en `gemini-3.6-flash`.
+- 📜 **Changelog Estructurado en Español**:
+  - Pantalla interactiva en `/changelog` que lee directamente `CHANGELOG.md` con línea de tiempo y badges temáticos.
+- ⚡ **Resiliencia, Alta Cuota y Fast-Fallback**:
+  - Modelo ultra-rápido `gemini-3.5-flash-lite` (~2.8s) con respaldo en `gemini-3.1-flash-lite` (500 RPD en capa gratuita).
+  - Unificación de mensajes de error de cuota y timeout bajo aviso pedagógico amigable.
   - Configuración de políticas de seguridad permisivas (`BLOCK_NONE`) para evitar falsos positivos en textos de ficción o dramáticos.
 - 💾 **Persistencia Unificada por UUID**:
   - Todo el progreso de lectura, niveles desbloqueados y estado del quiz se asocia a un UUID de sesión anónima en `localStorage` (sin necesidad de registro previo).
@@ -94,8 +95,8 @@ graph LR
 - **Lenguaje**: [TypeScript](https://www.typescriptlang.org/) con tipado estricto.
 - **Inteligencia Artificial**: [Google Gen AI SDK (`@google/genai`)](https://aistudio.google.com/)
   - Modelo Principal de Quiz: `gemini-3.5-flash-lite` (generación en ~2.8s)
-  - Modelo de Respaldo: `gemini-3.6-flash` (generación profunda)
-  - Clasificador de Secciones: `gemma-4-31b-it`
+  - Modelo de Respaldo: `gemini-3.1-flash-lite` (500 RPD alta cuota)
+  - Clasificador de Secciones: `gemma-4-31b-it` (con fallback en `gemini-3.1-flash-lite`)
 - **Renderizado de PDFs**: [React-PDF](https://github.com/wojtekmaj/react-pdf) y `pdfjs-dist`.
 - **Estilos y Tipografía**: [Tailwind CSS](https://tailwindcss.com/) + Google Fonts (**Outfit** y **Patrick Hand**).
 - **Despliegue**: [Vercel](https://vercel.com/).
