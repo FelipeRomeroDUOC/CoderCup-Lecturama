@@ -60,7 +60,10 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FAF6F0] dark:bg-[#0E0D0C] text-zinc-900 dark:text-zinc-100 selection:bg-[#D97706] selection:text-white flex flex-col font-sans transition-colors duration-200 relative overflow-x-hidden">
+    <div
+      className="min-h-screen bg-[#FAF6F0] dark:bg-[#0E0D0C] text-zinc-900 dark:text-zinc-100 selection:bg-[#D97706] selection:text-white flex flex-col font-sans transition-colors duration-200 relative overflow-x-hidden"
+      suppressHydrationWarning
+    >
       {/* Animated Zero-Gravity Literary Background */}
       <LibraryFloatingBackground />
 

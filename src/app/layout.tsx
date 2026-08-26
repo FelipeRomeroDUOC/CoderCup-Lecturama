@@ -23,6 +23,9 @@ export const metadata: Metadata = {
   title: "LECTURAMA",
   description:
     "La plataforma que convierte la lectura en aprendizaje entretenido, donde cada libro esconde un reto.",
+  other: {
+    "darkreader-lock": "true",
+  },
   icons: {
     icon: [
       { url: "/app-icon.png?v=2", type: "image/png" },
@@ -44,6 +47,9 @@ export default function RootLayout({
       className={`${outfit.variable} ${patrickHand.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
+      <head>
+        <meta name="darkreader-lock" content="true" />
+      </head>
       <body className="min-h-full flex flex-col font-sans" suppressHydrationWarning>
         {children}
       </body>
