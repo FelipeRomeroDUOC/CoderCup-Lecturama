@@ -53,12 +53,13 @@ const CLASSIFY_TIMEOUT_MS = 6000; // 6 seconds for binary classification
 interface RawGeminiQuestion {
   id?: string;
   question: string;
+  explanation: string;
   options: string[];
+  correctOptionIndex?: number;
   correctAnswerText: string;
-  explanation?: string;
 }
 
-// JSON Schema definition for structured outputs using exact text matching
+// JSON Schema definition for structured outputs using Rationale-First (Chain-of-Thought) ordering
 const quizResponseSchema = {
   type: Type.ARRAY,
   description: "Lista de exactamente 8 preguntas de opción múltiple sobre el capítulo",
@@ -73,21 +74,26 @@ const quizResponseSchema = {
         type: Type.STRING,
         description: "Enunciado claro de la pregunta de comprensión",
       },
+      explanation: {
+        type: Type.STRING,
+        description:
+          "Razonamiento pedagógico previo: analiza por qué la respuesta correcta es la adecuada y fundamenta la idea en el texto, sin incluir notas de formato ni metainstrucciones.",
+      },
       options: {
         type: Type.ARRAY,
         items: { type: Type.STRING },
-        description: "Exactamente 4 opciones de respuesta distintas y plausibles",
+        description: "Exactamente 4 opciones de respuesta distintas y verosímiles donde una es la correcta descrita en tu explicación",
+      },
+      correctOptionIndex: {
+        type: Type.INTEGER,
+        description: "Índice numérico (0, 1, 2 o 3) de la opción correcta dentro del arreglo options",
       },
       correctAnswerText: {
         type: Type.STRING,
-        description: "El texto exacto de la opción que es la respuesta correcta (debe coincidir con una de las 4 opciones)",
-      },
-      explanation: {
-        type: Type.STRING,
-        description: "Breve explicación de por qué esta opción es la correcta según el texto",
+        description: "Copia literal y exacta del texto de la opción correcta",
       },
     },
-    required: ["id", "question", "options", "correctAnswerText"],
+    required: ["id", "question", "explanation", "options", "correctAnswerText"],
   },
 };
 
@@ -236,25 +242,138 @@ function shuffleArray<T>(array: T[]): T[] {
 }
 
 /**
- * Finds the index of the option that matches the correct answer text.
- * Prevents LLM off-by-one numeric indexing errors.
+ * Sanitizes explanation string to remove leaked prompt rules, meta-notes, or JSON references.
  */
-function findCorrectIndex(options: string[], targetText?: string): number {
-  if (!targetText) return 0;
-  const normalizedTarget = targetText.trim().toLowerCase();
+function sanitizeExplanation(rawExplanation?: string): string {
+  if (!rawExplanation) return "";
+  let clean = rawExplanation.trim();
 
-  // 1. Exact match
-  const exactIndex = options.findIndex(
-    (opt) => opt.trim().toLowerCase() === normalizedTarget
+  // Strip leading meta-rules like "Nota: ...", "Nota formativa: ...", "Regla: ...", "Instrucción: ..."
+  clean = clean.replace(
+    /^(nota(\s+formativa)?|regla|instrucci[oó]n|importante|aviso|atenci[oó]n)\s*:\s*.*?(?=(\.|\n|$))/i,
+    ""
   );
-  if (exactIndex >= 0) return exactIndex;
 
-  // 2. Contains / Substring match
-  const partialIndex = options.findIndex((opt) => {
-    const normOpt = opt.trim().toLowerCase();
-    return normOpt.includes(normalizedTarget) || normalizedTarget.includes(normOpt);
-  });
-  if (partialIndex >= 0) return partialIndex;
+  // Strip references to prompt internal rules if leaked
+  clean = clean.replace(
+    /^(la\s+opci[oó]n\s+correcta\s+debe\s+coincidir.*?(?=(\.|\n|$)))/i,
+    ""
+  );
+  clean = clean.replace(/^(\.\s*|\n+)+/, "");
+
+  return clean.trim() || rawExplanation.trim();
+}
+
+/**
+ * Calculates lexical term overlap between an option and the pedagogical explanation.
+ * Used as a deterministic fallback cross-check to resolve discrepancies.
+ */
+function calculateSemanticOverlap(optionText: string, explanationText: string): number {
+  const stopWords = new Set([
+    "el", "la", "los", "las", "un", "una", "unos", "unas", "de", "del", "a", "al",
+    "en", "con", "por", "para", "que", "se", "su", "sus", "es", "son", "fue", "eran",
+    "y", "e", "o", "u", "pero", "como", "más", "este", "esta", "estos", "estas"
+  ]);
+
+  const extractTokens = (text: string) =>
+    text
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\s]/gu, " ")
+      .split(/\s+/)
+      .filter((word) => word.length > 3 && !stopWords.has(word));
+
+  const optionTokens = new Set(extractTokens(optionText));
+  const explanationTokens = extractTokens(explanationText);
+
+  if (optionTokens.size === 0 || explanationTokens.length === 0) return 0;
+
+  let matches = 0;
+  for (const token of explanationTokens) {
+    if (optionTokens.has(token)) {
+      matches++;
+    }
+  }
+
+  return matches / Math.max(optionTokens.size, 1);
+}
+
+/**
+ * Resolves the definitive correct option index via multi-layer cross-validation:
+ * 1. Exact textual match between correctAnswerText and options.
+ * 2. Exact index match if options[correctOptionIndex] matches correctAnswerText.
+ * 3. Substring/partial match.
+ * 4. Semantic term overlap with explanation to resolve any discrepancy.
+ */
+function resolveCorrectOptionIndex(
+  options: string[],
+  correctAnswerText?: string,
+  rawCorrectIndex?: number,
+  explanation?: string
+): number {
+  if (!Array.isArray(options) || options.length === 0) return 0;
+
+  const normalizedOptions = options.map((opt) => opt.trim().toLowerCase());
+  const normalizedTarget = (correctAnswerText || "").trim().toLowerCase();
+
+  // 1. Check exact textual match
+  if (normalizedTarget) {
+    const exactMatchIndex = normalizedOptions.indexOf(normalizedTarget);
+    if (exactMatchIndex >= 0) {
+      return exactMatchIndex;
+    }
+  }
+
+  // 2. Check if rawCorrectIndex is valid and points to a plausible match
+  if (
+    typeof rawCorrectIndex === "number" &&
+    rawCorrectIndex >= 0 &&
+    rawCorrectIndex < options.length
+  ) {
+    const optionAtIndex = normalizedOptions[rawCorrectIndex];
+    if (
+      normalizedTarget &&
+      (optionAtIndex.includes(normalizedTarget) || normalizedTarget.includes(optionAtIndex))
+    ) {
+      return rawCorrectIndex;
+    }
+  }
+
+  // 3. Substring / partial text search
+  if (normalizedTarget.length > 3) {
+    const partialMatchIndex = normalizedOptions.findIndex(
+      (opt) => opt.includes(normalizedTarget) || normalizedTarget.includes(opt)
+    );
+    if (partialMatchIndex >= 0) {
+      return partialMatchIndex;
+    }
+  }
+
+  // 4. Cross-validation fallback: Semantic overlap with explanation
+  if (explanation && explanation.length > 10) {
+    let bestIndex = 0;
+    let highestScore = -1;
+
+    options.forEach((opt, idx) => {
+      const score = calculateSemanticOverlap(opt, explanation);
+      if (score > highestScore) {
+        highestScore = score;
+        bestIndex = idx;
+      }
+    });
+
+    if (highestScore > 0) {
+      return bestIndex;
+    }
+  }
+
+  // Safe fallback if rawCorrectIndex is within range
+  if (
+    typeof rawCorrectIndex === "number" &&
+    rawCorrectIndex >= 0 &&
+    rawCorrectIndex < options.length
+  ) {
+    return rawCorrectIndex;
+  }
 
   return 0;
 }
@@ -350,7 +469,11 @@ ${audienceGuidelines}
 
 Pautas estrictas para todas las dificultades:
 - Cada pregunta debe exigir comprensión profunda del significado del pasaje y evitar memorización de cifras o datos aislados sin relevancia temática.
-- El campo "correctAnswerText" DEBE ser una copia literal y exacta de una de las 4 opciones del arreglo "options".
+- Orden secuencial obligatorio de generación:
+  1. Redacta primero el campo "explanation" analizando pedagógicamente el pasaje y explicando cuál es la respuesta correcta y por qué los distractores fallan.
+  2. Luego redacta las 4 opciones en el arreglo "options".
+  3. Finalmente asigna "correctOptionIndex" (0, 1, 2 o 3) y copia exactamente el texto en "correctAnswerText".
+- La "explanation" debe ser 100% pedagógica para el estudiante. NUNCA incluyas la palabra "Nota:", avisos de formato ni referencias al JSON.
 - Evita opciones extremas con palabras como "nunca" o "siempre" que permitan descartar respuestas fácilmente.
 
 Directrices psicométricas para las opciones y distractores:
@@ -499,9 +622,15 @@ export async function generateChapterQuiz(
         throw new Error("El formato de preguntas devuelto no es válido.");
       }
 
-      // Match correct answer by text and shuffle options
+      // Multi-layer cross-validation of correct answer and option shuffling
       const validatedQuestions: QuizQuestion[] = parsed.slice(0, 8).map((q, index) => {
-        const correctIndex = findCorrectIndex(q.options, q.correctAnswerText);
+        const cleanExplanation = sanitizeExplanation(q.explanation);
+        const correctIndex = resolveCorrectOptionIndex(
+          q.options,
+          q.correctAnswerText,
+          q.correctOptionIndex,
+          cleanExplanation
+        );
         const { options: shuffledOptions, correctOptionIndex: shuffledIndex } =
           shuffleOptionsAndIndex(q.options, correctIndex);
 
@@ -510,7 +639,7 @@ export async function generateChapterQuiz(
           question: q.question,
           options: shuffledOptions,
           correctOptionIndex: shuffledIndex,
-          explanation: q.explanation || "",
+          explanation: cleanExplanation,
         };
       });
 
