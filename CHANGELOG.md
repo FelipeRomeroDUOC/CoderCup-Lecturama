@@ -7,6 +7,28 @@ y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ---
 
+## [1.0.0-beta.8] - 2026-08-26
+
+Octava versión beta que perfecciona la precisión en la evaluación de la IA mediante generación Rationale-First, validación cruzada multi-capa y compatibilidad contra extensiones de navegador.
+
+### ✨ Añadido (Added)
+- **Generación Pedagógica Rationale-First en Gemini**:
+  - Reestructuración del flujo de generación en JSON estructurado para que el modelo redacte primero el razonamiento pedagógico (`explanation`) antes de asignar las opciones y fijar la respuesta correcta, eliminando por completo la deriva de atención (*hallucination drift*).
+- **Validación Cruzada Multi-Capa (`resolveCorrectOptionIndex`)**:
+  - Algoritmo determinista de 4 pasos en el servidor que valida la coincidencia de texto literal, verificación de índice numérico y desempate por solapamiento léxico-semántico entre las opciones y el razonamiento de la explicación.
+- **Sanitización de Explicaciones Formativas (`sanitizeExplanation`)**:
+  - Purga automática de prefijos residuales de metainstrucciones (*"Nota: ...", "Regla: ..."*) para asegurar un feedback formativo impecable para el estudiante.
+- **Protección contra Extensiones de Navegador (`darkreader-lock`)**:
+  - Integración de directiva oficial `<meta name="darkreader-lock" content="true" />` en metadatos y `<head>` de la aplicación, preservando la paleta de color nativa y erradicando advertencias de hidratación en SSR.
+
+### 🛡️ Corregido (Fixed)
+- **Desalineación entre Clave y Explicación en Quizes**:
+  - Erradicado el fallo donde una opción incorrecta era marcada en verde a pesar de que la explicación justificaba la alternativa acertada.
+- **Inconsistencias de Hidratación en Navegadores**:
+  - Añadido `suppressHydrationWarning` en `<html>`, `<body>` y la landing page para silenciar avisos de consola causados por extensiones de terceros.
+
+---
+
 ## [1.0.0-beta.7] - 2026-08-24
 
 Séptima versión beta que introduce la nueva identidad de marca oficial con favicon interactivo, resiliencia de IA con Gemini 3.1 Flash Lite y mensajes amigables al usuario.

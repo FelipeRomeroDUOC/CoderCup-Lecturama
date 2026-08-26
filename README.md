@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Versión](https://img.shields.io/badge/versión-1.0.0--beta.7-amber?style=for-the-badge)
+![Versión](https://img.shields.io/badge/versión-1.0.0--beta.8-amber?style=for-the-badge)
 ![Estado](https://img.shields.io/badge/estado-beta%20pública-emerald?style=for-the-badge)
 ![Next.js](https://img.shields.io/badge/Next.js-16.3-black?style=for-the-badge&logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)
@@ -31,6 +31,7 @@ El libro se divide automáticamente en capítulos que funcionan como **niveles p
   - **Fondo animado en gravedad cero**: Libros flotantes, plumas, pergaminos y destellos sobre grafito cálido (`#0E0D0C`) con halos dorados.
   - **Atril de lectura táctil**: Dropzone con resplandor dorado ambiental (`gold-glow`) y micro-animaciones.
   - **Escritorio de lectura inmersivo**: Visor con iluminación de lámpara y hojas con sombra multicapa envolvente.
+  - **Protección contra Extensiones de Navegador**: Directiva oficial `darkreader-lock` y `suppressHydrationWarning` para garantizar una renderización impecable sin mutaciones externas.
 - 📚 **Mi Estantería de Libros (Biblioteca Persistente en IndexedDB)**:
   - **Tomos de libros en 3D**: Portadas reales extraídas de la primera página con textura de lomo y animación de gravedad cero al posar el cursor (*hover*).
   - **Detección multinivel de Título y Autor**: Extracción inteligente desde metadatos PDF, líneas de portada y patrones en el nombre de archivo.
@@ -46,6 +47,9 @@ El libro se divide automáticamente en capítulos que funcionan como **niveles p
   - Los capítulos siguientes permanecen bloqueados (`🔒`) hasta superar el quiz del nivel actual.
   - Las secciones introductorias y anexos (portadas, dedicatorias, notas, glosarios) se clasifican con IA y quedan libres para lectura libre en cualquier momento.
 - 🧠 **Desafíos Pedagógicos con IA (Google Gemini)**:
+  - **Generación Rationale-First**: El modelo razona primero la explicación pedagógica antes de fijar las opciones y la clave correcta, erradicando contradicciones por deriva de atención.
+  - **Validación Cruzada Multi-Capa**: Algoritmo de 4 pasos que valida texto exacto, índice numérico y solapamiento léxico-semántico con el razonamiento.
+  - **Sanitización de Explicaciones**: Purga automática de metanotas del prompt para entregar explicaciones formativas limpias.
   - Generación bajo demanda en **~2.8 segundos** (solo cuando el lector termina un capítulo).
   - **8 preguntas de opción múltiple** estructuradas con distractores psicométricos de alta verosimilitud y explicaciones formativas inmediatas.
   - Adaptabilidad para textos **narrativos** y **expositivos/argumentativos**.
