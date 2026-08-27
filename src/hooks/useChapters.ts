@@ -4,6 +4,7 @@ import {
   detectVisualChapters,
   detectSubchaptersInRange,
   enrichChaptersWithSharedPageSplits,
+  mergeSmallAndMultiLineChapters,
 } from "@/lib/visualChapterDetector";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 
@@ -29,7 +30,8 @@ export function useChapters() {
           const visualChapters = await detectVisualChapters(pdfDocument, totalPages);
 
           if (visualChapters.length > 0) {
-            const enriched = await enrichChaptersWithSharedPageSplits(pdfDocument, visualChapters);
+            const merged = await mergeSmallAndMultiLineChapters(pdfDocument, visualChapters);
+            const enriched = await enrichChaptersWithSharedPageSplits(pdfDocument, merged);
             setChapters(enriched);
             setHasOutline(true);
             return;
@@ -177,9 +179,14 @@ export function useChapters() {
           enrichedChapters.push(ch);
         }
 
-        const finalChapters = await enrichChaptersWithSharedPageSplits(
+        const mergedChapters = await mergeSmallAndMultiLineChapters(
           pdfDocument,
           enrichedChapters
+        );
+
+        const finalChapters = await enrichChaptersWithSharedPageSplits(
+          pdfDocument,
+          mergedChapters
         );
         setChapters(finalChapters);
       } catch (err) {

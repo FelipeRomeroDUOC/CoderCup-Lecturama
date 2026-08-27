@@ -1,5 +1,6 @@
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { Chapter } from "@/types/pdf";
+import { extractChapterText } from "./pdfTextExtractor";
 
 interface TextItemWithPosition {
   str: string;
@@ -346,4 +347,86 @@ export async function enrichChaptersWithSharedPageSplits(
   }
 
   return chapters;
+}
+
+/**
+ * Merges consecutive multiline headers on the same page and consolidates chapters with < 60 words.
+ */
+export async function mergeSmallAndMultiLineChapters(
+  pdfDocument: PDFDocumentProxy,
+  chapters: Chapter[]
+): Promise<Chapter[]> {
+  if (chapters.length <= 1) return chapters;
+
+  // 1. First pass: Merge same-page consecutive entries (e.g. "El cónsul de las mil vidas" and "Samuel del Campo" on p. 5)
+  const mergedSamePage: Chapter[] = [];
+  for (let i = 0; i < chapters.length; i++) {
+    const curr = chapters[i];
+    const next = chapters[i + 1];
+
+    if (curr.items && curr.items.length > 0) {
+      curr.items = await mergeSmallAndMultiLineChapters(pdfDocument, curr.items);
+    }
+
+    if (next && curr.startPage === next.startPage && (!curr.items || curr.items.length === 0)) {
+      try {
+        const text = await extractChapterText(
+          pdfDocument,
+          curr.startPage,
+          curr.endPage,
+          curr.startItemIndex,
+          curr.endItemIndex
+        );
+        const wordCount = text.split(/\s+/).filter(Boolean).length;
+
+        // If curr is just a subtitle/heading fragment (< 60 words on the same start page)
+        if (wordCount < 60) {
+          next.title = `${curr.title}: ${next.title}`;
+          continue; // Absorb curr into next
+        }
+      } catch {
+        // Ignore extraction error
+      }
+    }
+
+    mergedSamePage.push(curr);
+  }
+
+  // 2. Second pass: Consolidate any tiny chapters (< 50 words) that cannot form a valid reading level
+  const finalChapters: Chapter[] = [];
+  for (let i = 0; i < mergedSamePage.length; i++) {
+    const curr = mergedSamePage[i];
+    const next = mergedSamePage[i + 1];
+
+    if (mergedSamePage.length > 1 && (!curr.items || curr.items.length === 0)) {
+      try {
+        const text = await extractChapterText(
+          pdfDocument,
+          curr.startPage,
+          curr.endPage,
+          curr.startItemIndex,
+          curr.endItemIndex
+        );
+        const wordCount = text.split(/\s+/).filter(Boolean).length;
+
+        if (wordCount < 50) {
+          if (next) {
+            next.startPage = Math.min(next.startPage, curr.startPage);
+            next.title = `${curr.title} - ${next.title}`;
+            continue;
+          } else if (finalChapters.length > 0) {
+            const prev = finalChapters[finalChapters.length - 1];
+            prev.endPage = Math.max(prev.endPage, curr.endPage);
+            continue;
+          }
+        }
+      } catch {
+        // Ignore extraction error
+      }
+    }
+
+    finalChapters.push(curr);
+  }
+
+  return finalChapters;
 }
