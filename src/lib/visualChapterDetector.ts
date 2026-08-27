@@ -246,58 +246,95 @@ export async function enrichChaptersWithSharedPageSplits(
             .split(/\s+/)
             .filter((w) => w.length >= 3);
 
-          let splitIndex = -1;
-          let splitYFromBottom = viewport.height * 0.5;
-          let splitItemHeight = 18;
+          // Group items by physical line (similar Y within 6px) to handle multi-span styled titles
+          interface LineGroup {
+            text: string;
+            firstItemIndex: number;
+            yFromBottom: number;
+            height: number;
+          }
 
-          // Search from items
+          const lines: LineGroup[] = [];
+          let curLineText = "";
+          let curFirstIndex = -1;
+          let curY = -9999;
+          let curHeight = 16;
+
           for (let itemIdx = 0; itemIdx < textContent.items.length; itemIdx++) {
             const item = textContent.items[itemIdx];
             if ("str" in item && typeof item.str === "string") {
-              const strLower = item.str.toLowerCase().trim();
-              if (!strLower) continue;
+              const itemY = Array.isArray(item.transform) ? item.transform[5] : 0;
+              const itemHeight = item.height || 16;
 
-              const matchesTitle =
-                (cleanNextTitle.length > 3 && strLower.includes(cleanNextTitle)) ||
-                (searchKeywords.length >= 2 &&
-                  searchKeywords.every((kw) => strLower.includes(kw))) ||
-                (searchKeywords.length === 1 && strLower.includes(searchKeywords[0]));
-
-              const matchesPrefix =
-                CHAPTER_PREFIX_REGEX.test(item.str) ||
-                NUMBERED_TITLE_REGEX.test(item.str) ||
-                ISOLATED_ARABIC_NUM_REGEX.test(item.str) ||
-                ISOLATED_ROMAN_NUM_REGEX.test(item.str);
-
-              if (matchesTitle || matchesPrefix) {
-                splitIndex = itemIdx;
-                if (Array.isArray(item.transform)) {
-                  splitYFromBottom = item.transform[5];
+              if (Math.abs(itemY - curY) > 6) {
+                if (curLineText.trim() && curFirstIndex >= 0) {
+                  lines.push({
+                    text: curLineText.trim(),
+                    firstItemIndex: curFirstIndex,
+                    yFromBottom: curY,
+                    height: curHeight,
+                  });
                 }
-                splitItemHeight = item.height || 18;
-                break;
+                curLineText = item.str;
+                curFirstIndex = itemIdx;
+                curY = itemY;
+                curHeight = itemHeight;
+              } else {
+                curLineText += (curLineText ? " " : "") + item.str;
+                curHeight = Math.max(curHeight, itemHeight);
               }
             }
           }
+          if (curLineText.trim() && curFirstIndex >= 0) {
+            lines.push({
+              text: curLineText.trim(),
+              firstItemIndex: curFirstIndex,
+              yFromBottom: curY,
+              height: curHeight,
+            });
+          }
 
-          if (splitIndex >= 0) {
+          let matchedLine: LineGroup | null = null;
+
+          for (const line of lines) {
+            const lineLower = line.text.toLowerCase();
+
+            const matchesFullTitle =
+              cleanNextTitle.length > 3 && lineLower.includes(cleanNextTitle);
+            const matchesAllKeywords =
+              searchKeywords.length >= 2 && searchKeywords.every((kw) => lineLower.includes(kw));
+            const matchesSingleKeyword =
+              searchKeywords.length === 1 && lineLower.includes(searchKeywords[0]);
+            const matchesPattern =
+              NUMBERED_TITLE_REGEX.test(line.text) ||
+              CHAPTER_PREFIX_REGEX.test(line.text) ||
+              ISOLATED_ARABIC_NUM_REGEX.test(line.text) ||
+              ISOLATED_ROMAN_NUM_REGEX.test(line.text);
+
+            if (matchesFullTitle || matchesAllKeywords || matchesSingleKeyword || matchesPattern) {
+              matchedLine = line;
+              break;
+            }
+          }
+
+          if (matchedLine) {
             // Physical top of the header in viewport space (distance from page top)
-            const headerTopY = viewport.height - (splitYFromBottom + splitItemHeight);
+            const headerTopY = viewport.height - (matchedLine.yFromBottom + matchedLine.height);
 
             // If header is at the very top (<= 8% of page height), previous chapter simply ends on page before
             if (headerTopY / viewport.height <= 0.08) {
               curr.endPage = Math.max(curr.startPage, sharedPageNum - 1);
             } else {
               // 1. Cierre del capítulo anterior (Parte 1/2):
-              // Corta ANTES del título del nuevo capítulo, dejando espacio limpio
-              const endCutY = Math.max(20, headerTopY - 14);
-              curr.endItemIndex = Math.max(0, splitIndex - 1);
+              // Corta 8px antes del inicio del nuevo capítulo para no mostrar nada del título
+              const endCutY = Math.max(20, headerTopY - 8);
+              curr.endItemIndex = Math.max(0, matchedLine.firstItemIndex - 1);
               curr.endSplitFractionY = Math.max(0.05, Math.min(0.95, endCutY / viewport.height));
 
               // 2. Inicio del nuevo capítulo (Parte 2/2):
-              // Desplaza hacia arriba dejando 24px de margen blanco superior para no cortar las letras
-              const startCutY = Math.max(0, headerTopY - 24);
-              next.startItemIndex = splitIndex;
+              // Desplaza hasta 6px antes del título, eliminando cualquier residuo del párrafo anterior
+              const startCutY = Math.max(0, headerTopY - 6);
+              next.startItemIndex = matchedLine.firstItemIndex;
               next.startSplitFractionY = Math.max(0.0, Math.min(0.95, startCutY / viewport.height));
             }
           }
