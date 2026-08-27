@@ -136,31 +136,45 @@ export function useChapters() {
 
         const resolvedChapters = assignEndPages(rawList, totalPages);
 
-        // If outline only has 1 single generic entry with no children, scan for subchapters
-        let enrichedChapters = resolvedChapters;
-        if (
-          resolvedChapters.length === 1 &&
-          (!resolvedChapters[0].items || resolvedChapters[0].items.length === 0)
-        ) {
-          const single = resolvedChapters[0];
-          try {
-            const subchapters = await detectSubchaptersInRange(
-              pdfDocument,
-              single.startPage,
-              single.endPage,
-              single.id
-            );
-            if (subchapters.length > 1) {
-              enrichedChapters = [
-                {
-                  ...single,
+        // Subdivide macro sections (> 3 pages) with visual subchapter detection
+        const enrichedChapters: Chapter[] = [];
+
+        for (let i = 0; i < resolvedChapters.length; i++) {
+          const ch = resolvedChapters[i];
+          const nextCh = resolvedChapters[i + 1];
+          const pageSpan = ch.endPage - ch.startPage + 1;
+
+          if (pageSpan >= 3 && (!ch.items || ch.items.length === 0)) {
+            try {
+              // If next section starts on ch.endPage, limit scan to endPage - 1 so we don't capture next section's opening
+              const scanEndPage =
+                nextCh && nextCh.startPage === ch.endPage
+                  ? Math.max(ch.startPage, ch.endPage - 1)
+                  : ch.endPage;
+
+              const subchapters = await detectSubchaptersInRange(
+                pdfDocument,
+                ch.startPage,
+                scanEndPage,
+                ch.id
+              );
+
+              if (subchapters.length > 1) {
+                // Ensure the last subchapter reaches ch.endPage
+                subchapters[subchapters.length - 1].endPage = ch.endPage;
+
+                enrichedChapters.push({
+                  ...ch,
                   items: subchapters,
-                },
-              ];
+                });
+                continue;
+              }
+            } catch (scanErr) {
+              console.warn(`Error scanning subchapters for section ${ch.title}:`, scanErr);
             }
-          } catch (scanErr) {
-            console.warn("Error scanning subchapters for single outline entry:", scanErr);
           }
+
+          enrichedChapters.push(ch);
         }
 
         const finalChapters = await enrichChaptersWithSharedPageSplits(
