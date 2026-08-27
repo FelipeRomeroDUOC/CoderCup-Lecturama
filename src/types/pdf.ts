@@ -5,6 +5,11 @@ export interface Chapter {
   startPage: number;
   endPage: number;
   items?: Chapter[];
+  startItemIndex?: number;
+  endItemIndex?: number;
+  splitFractionY?: number;
+  partIndex?: number;
+  totalParts?: number;
 }
 
 export interface PdfDocumentInfo {

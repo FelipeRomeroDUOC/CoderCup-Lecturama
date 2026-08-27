@@ -12,6 +12,9 @@ interface PdfViewerProps {
   onVisiblePageChange: (pageNum: number) => void;
   scale?: number;
   activeChapterTitle?: string;
+  splitFractionY?: number;
+  partIndex?: number;
+  totalParts?: number;
   hasNextChapter?: boolean;
   hasPrevChapter?: boolean;
   isCurrentChapterCompleted?: boolean;
@@ -43,6 +46,9 @@ function PdfViewerComponent({
   onVisiblePageChange,
   scale = 1.0,
   activeChapterTitle,
+  splitFractionY,
+  partIndex,
+  totalParts,
   hasNextChapter = false,
   hasPrevChapter = false,
   isCurrentChapterCompleted = false,
@@ -60,6 +66,7 @@ function PdfViewerComponent({
 }: PdfViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState<number>(750);
+  const [pageAspectRatios, setPageAspectRatios] = useState<Record<number, number>>({});
   const isProgrammaticScroll = useRef<boolean>(false);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastReportedPageRef = useRef<number>(-1);
@@ -157,27 +164,71 @@ function PdfViewerComponent({
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-amber-500/8 dark:bg-amber-500/6 rounded-full blur-3xl pointer-events-none" />
 
       {/* Pages List */}
-      {pageNumbers.map((pageNum) => (
-        <div
-          key={pageNum}
-          data-page-number={pageNum}
-          className="relative shadow-[0_12px_35px_rgba(0,0,0,0.12)] dark:shadow-[0_25px_60px_rgba(0,0,0,0.7)] rounded-2xl overflow-hidden border border-amber-950/10 dark:border-amber-500/15 bg-white transition-all duration-300 hover:shadow-[0_18px_45px_rgba(0,0,0,0.18)] dark:hover:shadow-[0_30px_70px_rgba(0,0,0,0.85)] ring-1 ring-black/5 dark:ring-amber-500/10"
-          style={{ width: `${calculatedPageWidth}px` }}
-        >
-          {/* Subtle Page Number Indicator on Top */}
-          <div className="absolute top-2.5 right-3 z-10 text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md px-2.5 py-0.5 rounded-full shadow-xs border border-zinc-200/60 dark:border-zinc-800/60">
-            Pág. {pageNum}
-          </div>
+      {pageNumbers.map((pageNum) => {
+        const isEndPagePart1 =
+          pageNum === endPage && partIndex === 1 && typeof splitFractionY === "number";
+        const isStartPagePart2 =
+          pageNum === startPage && partIndex === 2 && typeof splitFractionY === "number";
 
-          <Page
-            pageNumber={pageNum}
-            width={calculatedPageWidth}
-            renderTextLayer={true}
-            renderAnnotationLayer={true}
-            loading={<PageLoadingPlaceholder />}
-          />
-        </div>
-      ))}
+        const aspectRatio = pageAspectRatios[pageNum] || 1.414;
+        const fullPageHeight = Math.round(calculatedPageWidth * aspectRatio);
+
+        let containerHeight: number | undefined = undefined;
+        let translateYOffset = 0;
+
+        if (isEndPagePart1) {
+          containerHeight = Math.round(fullPageHeight * splitFractionY!);
+        } else if (isStartPagePart2) {
+          translateYOffset = Math.round(fullPageHeight * splitFractionY!);
+          containerHeight = Math.round(fullPageHeight * (1 - splitFractionY!));
+        }
+
+        const pageLabel =
+          isEndPagePart1
+            ? `Pág. ${pageNum} (1/2)`
+            : isStartPagePart2
+            ? `Pág. ${pageNum} (2/2)`
+            : `Pág. ${pageNum}`;
+
+        return (
+          <div
+            key={pageNum}
+            data-page-number={pageNum}
+            className="relative shadow-[0_12px_35px_rgba(0,0,0,0.12)] dark:shadow-[0_25px_60px_rgba(0,0,0,0.7)] rounded-2xl overflow-hidden border border-amber-950/10 dark:border-amber-500/15 bg-white transition-all duration-300 hover:shadow-[0_18px_45px_rgba(0,0,0,0.18)] dark:hover:shadow-[0_30px_70px_rgba(0,0,0,0.85)] ring-1 ring-black/5 dark:ring-amber-500/10"
+            style={{
+              width: `${calculatedPageWidth}px`,
+              height: containerHeight ? `${containerHeight}px` : undefined,
+            }}
+          >
+            {/* Subtle Page Number Indicator on Top */}
+            <div className="absolute top-2.5 right-3 z-10 text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md px-2.5 py-0.5 rounded-full shadow-xs border border-zinc-200/60 dark:border-zinc-800/60">
+              {pageLabel}
+            </div>
+
+            <div
+              style={{
+                transform: translateYOffset > 0 ? `translateY(-${translateYOffset}px)` : undefined,
+              }}
+            >
+              <Page
+                pageNumber={pageNum}
+                width={calculatedPageWidth}
+                renderTextLayer={true}
+                renderAnnotationLayer={true}
+                loading={<PageLoadingPlaceholder />}
+                onLoadSuccess={(page) => {
+                  if (page.originalWidth && page.originalHeight) {
+                    const ratio = page.originalHeight / page.originalWidth;
+                    setPageAspectRatios((prev) =>
+                      prev[pageNum] === ratio ? prev : { ...prev, [pageNum]: ratio }
+                    );
+                  }
+                }}
+              />
+            </div>
+          </div>
+        );
+      })}
 
       {/* End of Chapter Action Card */}
       <div

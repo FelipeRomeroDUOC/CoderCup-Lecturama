@@ -153,13 +153,6 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
     };
   }, [file]);
 
-  // Update book last read page in IndexedDB
-  useEffect(() => {
-    if (currentPage > 0) {
-      updateBookProgress(file.name, currentPage);
-    }
-  }, [currentPage, file.name]);
-
   const {
     chapters,
     hasOutline,
@@ -265,6 +258,13 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
     }
     return flattenedChapters[0] || null;
   }, [activeChapterId, flattenedChapters]);
+
+  // Update book last read page in IndexedDB
+  useEffect(() => {
+    if (currentPage > 0) {
+      updateBookProgress(file.name, currentPage, activeChapter?.id);
+    }
+  }, [currentPage, file.name, activeChapter?.id]);
 
   // Current chapter index in flattened list
   const currentChapterIndex = useMemo(() => {
@@ -498,11 +498,13 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
     setQuizError(null);
 
     try {
-      // 2. Extract plain text from the chapter's pages
+      // 2. Extract plain text from the chapter's pages (with item slicing for shared pages)
       const chapterText = await extractChapterText(
         pdfDocument,
         activeChapter.startPage,
-        activeChapter.endPage
+        activeChapter.endPage,
+        activeChapter.startItemIndex,
+        activeChapter.endItemIndex
       );
 
       if (!chapterText || chapterText.length < 30) {
@@ -807,6 +809,9 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
                       onVisiblePageChange={handleVisiblePageChange}
                       scale={scale}
                       activeChapterTitle={activeChapter?.title}
+                      splitFractionY={activeChapter?.splitFractionY}
+                      partIndex={activeChapter?.partIndex}
+                      totalParts={activeChapter?.totalParts}
                       hasNextChapter={
                         currentChapterIndex >= 0 &&
                         currentChapterIndex < flattenedChapters.length - 1
@@ -857,6 +862,11 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
                   numPages={numPages}
                   onPageChange={handlePageChange}
                   activeChapterTitle={activeChapter?.title}
+                  pagePartLabel={
+                    activeChapter?.partIndex
+                      ? `(${activeChapter.partIndex}/${activeChapter.totalParts || 2})`
+                      : undefined
+                  }
                 />
               </div>
             </div>

@@ -11,6 +11,7 @@ export interface StoredBook {
   totalPages?: number;
   totalChapters?: number;
   lastReadPage?: number;
+  lastReadChapterId?: string;
   lastReadAt: number;
   createdAt: number;
 }
@@ -154,7 +155,8 @@ export async function deleteStoredBook(id: string): Promise<void> {
  */
 export async function updateBookProgress(
   id: string,
-  lastReadPage: number
+  lastReadPage: number,
+  lastReadChapterId?: string
 ): Promise<void> {
   try {
     const db = await openDB();
@@ -171,13 +173,17 @@ export async function updateBookProgress(
         const existing = getRequest.result as StoredBook | undefined;
         if (existing) {
           existing.lastReadPage = lastReadPage;
+          if (lastReadChapterId) {
+            existing.lastReadChapterId = lastReadChapterId;
+          }
           existing.lastReadAt = Date.now();
           store.put(existing);
         }
       };
+      getRequest.onerror = () => resolve();
     });
   } catch (err) {
-    console.warn("Could not update book progress in IndexedDB:", err);
+    console.warn("Error updating book progress in IndexedDB:", err);
   }
 }
 

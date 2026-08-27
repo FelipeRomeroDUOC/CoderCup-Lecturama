@@ -1,6 +1,10 @@
 import { useState, useCallback } from "react";
 import { Chapter } from "@/types/pdf";
-import { detectVisualChapters, detectSubchaptersInRange } from "@/lib/visualChapterDetector";
+import {
+  detectVisualChapters,
+  detectSubchaptersInRange,
+  enrichChaptersWithSharedPageSplits,
+} from "@/lib/visualChapterDetector";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 
 interface PDFOutlineItem {
@@ -25,7 +29,8 @@ export function useChapters() {
           const visualChapters = await detectVisualChapters(pdfDocument, totalPages);
 
           if (visualChapters.length > 0) {
-            setChapters(visualChapters);
+            const enriched = await enrichChaptersWithSharedPageSplits(pdfDocument, visualChapters);
+            setChapters(enriched);
             setHasOutline(true);
             return;
           }
@@ -162,7 +167,11 @@ export function useChapters() {
           enrichedChapters.push(ch);
         }
 
-        setChapters(enrichedChapters);
+        const finalChapters = await enrichChaptersWithSharedPageSplits(
+          pdfDocument,
+          enrichedChapters
+        );
+        setChapters(finalChapters);
       } catch (err) {
         console.error("Error al extraer capítulos del PDF:", err);
         setChapters([]);

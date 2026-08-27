@@ -202,3 +202,103 @@ export async function detectVisualChapters(
 ): Promise<Chapter[]> {
   return detectSubchaptersInRange(pdfDocument, 1, totalPages, "visual");
 }
+
+/**
+ * Scans adjacent chapters that share the same physical PDF page (chapterN.endPage === chapterN+1.startPage)
+ * and calculates the exact item boundary (startItemIndex, endItemIndex) and splitFractionY.
+ */
+export async function enrichChaptersWithSharedPageSplits(
+  pdfDocument: PDFDocumentProxy,
+  chapters: Chapter[]
+): Promise<Chapter[]> {
+  const result: Chapter[] = chapters.map((ch) => ({
+    ...ch,
+    items: ch.items ? [...ch.items] : undefined,
+  }));
+
+  for (let i = 0; i < result.length - 1; i++) {
+    const curr = result[i];
+    const next = result[i + 1];
+
+    if (curr.endPage === next.startPage) {
+      const sharedPageNum = curr.endPage;
+      try {
+        const page = await pdfDocument.getPage(sharedPageNum);
+        const textContent = await page.getTextContent();
+        const viewport = page.getViewport({ scale: 1.0 });
+
+        if (textContent.items && textContent.items.length > 0) {
+          // Normalize next chapter title to find matching item
+          const cleanNextTitle = next.title
+            .toLowerCase()
+            .replace(/^[0-9ivxlcdm]+[\.\-\–\—\:]\s*/i, "")
+            .trim();
+
+          const searchKeywords = cleanNextTitle
+            .split(/\s+/)
+            .filter((w) => w.length >= 3);
+
+          let splitIndex = -1;
+          let splitYFromBottom = viewport.height * 0.5;
+
+          // Search from items
+          for (let itemIdx = 0; itemIdx < textContent.items.length; itemIdx++) {
+            const item = textContent.items[itemIdx];
+            if ("str" in item && typeof item.str === "string") {
+              const strLower = item.str.toLowerCase();
+
+              const matchesTitle =
+                (cleanNextTitle.length > 3 && strLower.includes(cleanNextTitle)) ||
+                (searchKeywords.length >= 2 &&
+                  searchKeywords.every((kw) => strLower.includes(kw))) ||
+                (searchKeywords.length === 1 && strLower.includes(searchKeywords[0]));
+
+              const matchesPrefix =
+                CHAPTER_PREFIX_REGEX.test(item.str) ||
+                NUMBERED_TITLE_REGEX.test(item.str);
+
+              if (matchesTitle || matchesPrefix) {
+                if (
+                  itemIdx > 0 ||
+                  (Array.isArray(item.transform) && item.transform[5] < viewport.height - 40)
+                ) {
+                  splitIndex = itemIdx;
+                  if (Array.isArray(item.transform)) {
+                    splitYFromBottom = item.transform[5];
+                  }
+                  break;
+                }
+              }
+            }
+          }
+
+          if (splitIndex > 0) {
+            const topY = viewport.height - splitYFromBottom;
+            const fraction = Math.max(0.08, Math.min(0.92, (topY - 12) / viewport.height));
+
+            curr.endItemIndex = splitIndex - 1;
+            curr.splitFractionY = fraction;
+            curr.partIndex = 1;
+            curr.totalParts = 2;
+
+            next.startItemIndex = splitIndex;
+            next.splitFractionY = fraction;
+            next.partIndex = 2;
+            next.totalParts = 2;
+          }
+        }
+      } catch (err) {
+        console.warn(`Error calculating shared page split for page ${sharedPageNum}:`, err);
+      }
+    }
+  }
+
+  // Also recursively process sub-items if present
+  for (const ch of result) {
+    if (ch.items && ch.items.length > 1) {
+      ch.items = await enrichChaptersWithSharedPageSplits(pdfDocument, ch.items);
+    }
+  }
+
+  return result;
+}

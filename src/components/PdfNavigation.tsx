@@ -7,6 +7,7 @@ interface PdfNavigationProps {
   numPages: number;
   onPageChange: (newPage: number) => void;
   activeChapterTitle?: string;
+  pagePartLabel?: string;
 }
 
 export default function PdfNavigation({
@@ -14,6 +15,7 @@ export default function PdfNavigation({
   numPages,
   onPageChange,
   activeChapterTitle,
+  pagePartLabel,
 }: PdfNavigationProps) {
   const [inputPage, setInputPage] = useState<string>(String(currentPage));
 
@@ -106,6 +108,11 @@ export default function PdfNavigation({
             className="w-12 px-1 py-0.5 text-center font-bold rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
             aria-label="Número de página"
           />
+          {pagePartLabel && (
+            <span className="text-amber-600 dark:text-amber-400 font-bold text-xs">
+              {pagePartLabel}
+            </span>
+          )}
           <span className="text-zinc-500">/ {numPages || 1}</span>
         </form>
 
