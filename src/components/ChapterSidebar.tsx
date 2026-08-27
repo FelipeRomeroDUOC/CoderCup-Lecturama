@@ -122,7 +122,7 @@ export default function ChapterSidebar({
                   }`}
                 >
                   p. {chapter.startPage}
-                  {chapter.partIndex ? ` (${chapter.partIndex}/${chapter.totalParts || 2})` : ""}
+                  {chapter.startSplitFractionY ? " (2/2)" : chapter.endSplitFractionY && chapter.startPage === chapter.endPage ? " (1/2)" : ""}
                 </span>
               </button>
 

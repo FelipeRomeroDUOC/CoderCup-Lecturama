@@ -809,9 +809,8 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
                       onVisiblePageChange={handleVisiblePageChange}
                       scale={scale}
                       activeChapterTitle={activeChapter?.title}
-                      splitFractionY={activeChapter?.splitFractionY}
-                      partIndex={activeChapter?.partIndex}
-                      totalParts={activeChapter?.totalParts}
+                      startSplitFractionY={activeChapter?.startSplitFractionY}
+                      endSplitFractionY={activeChapter?.endSplitFractionY}
                       hasNextChapter={
                         currentChapterIndex >= 0 &&
                         currentChapterIndex < flattenedChapters.length - 1
@@ -863,8 +862,10 @@ export default function PdfReader({ file, onClose }: PdfReaderProps) {
                   onPageChange={handlePageChange}
                   activeChapterTitle={activeChapter?.title}
                   pagePartLabel={
-                    activeChapter?.partIndex
-                      ? `(${activeChapter.partIndex}/${activeChapter.totalParts || 2})`
+                    activeChapter?.startSplitFractionY
+                      ? "(2/2)"
+                      : activeChapter?.endSplitFractionY
+                      ? "(1/2)"
                       : undefined
                   }
                 />

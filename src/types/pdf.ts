@@ -6,10 +6,9 @@ export interface Chapter {
   endPage: number;
   items?: Chapter[];
   startItemIndex?: number;
+  startSplitFractionY?: number;
   endItemIndex?: number;
-  splitFractionY?: number;
-  partIndex?: number;
-  totalParts?: number;
+  endSplitFractionY?: number;
 }
 
 export interface PdfDocumentInfo {

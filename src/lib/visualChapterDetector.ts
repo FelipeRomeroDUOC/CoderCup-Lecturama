@@ -205,20 +205,28 @@ export async function detectVisualChapters(
 
 /**
  * Scans adjacent chapters that share the same physical PDF page (chapterN.endPage === chapterN+1.startPage)
- * and calculates the exact item boundary (startItemIndex, endItemIndex) and splitFractionY.
+ * and calculates the exact item boundary (startItemIndex, endItemIndex) and startSplitFractionY / endSplitFractionY.
  */
 export async function enrichChaptersWithSharedPageSplits(
   pdfDocument: PDFDocumentProxy,
   chapters: Chapter[]
 ): Promise<Chapter[]> {
-  const result: Chapter[] = chapters.map((ch) => ({
-    ...ch,
-    items: ch.items ? [...ch.items] : undefined,
-  }));
+  // Collect all leaf/flat chapters in reading order
+  const flatList: Chapter[] = [];
+  const collectLeaves = (items: Chapter[]) => {
+    for (const item of items) {
+      if (item.items && item.items.length > 0) {
+        collectLeaves(item.items);
+      } else {
+        flatList.push(item);
+      }
+    }
+  };
+  collectLeaves(chapters);
 
-  for (let i = 0; i < result.length - 1; i++) {
-    const curr = result[i];
-    const next = result[i + 1];
+  for (let i = 0; i < flatList.length - 1; i++) {
+    const curr = flatList[i];
+    const next = flatList[i + 1];
 
     if (curr.endPage === next.startPage) {
       const sharedPageNum = curr.endPage;
@@ -278,16 +286,12 @@ export async function enrichChaptersWithSharedPageSplits(
             if (fraction <= 0.08) {
               curr.endPage = Math.max(curr.startPage, sharedPageNum - 1);
             } else {
-              // Real shared page split
+              // Real shared page split: curr ends at fraction, next starts at fraction
               curr.endItemIndex = Math.max(0, splitIndex - 1);
-              curr.splitFractionY = fraction;
-              curr.partIndex = 1;
-              curr.totalParts = 2;
+              curr.endSplitFractionY = fraction;
 
               next.startItemIndex = splitIndex;
-              next.splitFractionY = fraction;
-              next.partIndex = 2;
-              next.totalParts = 2;
+              next.startSplitFractionY = fraction;
             }
           }
         }
@@ -297,12 +301,5 @@ export async function enrichChaptersWithSharedPageSplits(
     }
   }
 
-  // Also recursively process sub-items if present
-  for (const ch of result) {
-    if (ch.items && ch.items.length > 1) {
-      ch.items = await enrichChaptersWithSharedPageSplits(pdfDocument, ch.items);
-    }
-  }
-
-  return result;
+  return chapters;
 }

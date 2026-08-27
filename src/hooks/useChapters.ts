@@ -136,35 +136,31 @@ export function useChapters() {
 
         const resolvedChapters = assignEndPages(rawList, totalPages);
 
-        // 2. Subdivide long chapters (> 3 pages) by scanning internal subchapters
-        const enrichedChapters: Chapter[] = [];
-
-        for (let i = 0; i < resolvedChapters.length; i++) {
-          const ch = resolvedChapters[i];
-          const pageSpan = ch.endPage - ch.startPage + 1;
-
-          if (pageSpan >= 3 && (!ch.items || ch.items.length === 0)) {
-            try {
-              const subchapters = await detectSubchaptersInRange(
-                pdfDocument,
-                ch.startPage,
-                ch.endPage,
-                ch.id
-              );
-
-              if (subchapters.length > 1) {
-                enrichedChapters.push({
-                  ...ch,
+        // If outline only has 1 single generic entry with no children, scan for subchapters
+        let enrichedChapters = resolvedChapters;
+        if (
+          resolvedChapters.length === 1 &&
+          (!resolvedChapters[0].items || resolvedChapters[0].items.length === 0)
+        ) {
+          const single = resolvedChapters[0];
+          try {
+            const subchapters = await detectSubchaptersInRange(
+              pdfDocument,
+              single.startPage,
+              single.endPage,
+              single.id
+            );
+            if (subchapters.length > 1) {
+              enrichedChapters = [
+                {
+                  ...single,
                   items: subchapters,
-                });
-                continue;
-              }
-            } catch (scanErr) {
-              console.warn(`Error scanning subchapters for chapter ${ch.title}:`, scanErr);
+                },
+              ];
             }
+          } catch (scanErr) {
+            console.warn("Error scanning subchapters for single outline entry:", scanErr);
           }
-
-          enrichedChapters.push(ch);
         }
 
         const finalChapters = await enrichChaptersWithSharedPageSplits(

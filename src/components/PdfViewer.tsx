@@ -12,9 +12,8 @@ interface PdfViewerProps {
   onVisiblePageChange: (pageNum: number) => void;
   scale?: number;
   activeChapterTitle?: string;
-  splitFractionY?: number;
-  partIndex?: number;
-  totalParts?: number;
+  startSplitFractionY?: number;
+  endSplitFractionY?: number;
   hasNextChapter?: boolean;
   hasPrevChapter?: boolean;
   isCurrentChapterCompleted?: boolean;
@@ -46,9 +45,8 @@ function PdfViewerComponent({
   onVisiblePageChange,
   scale = 1.0,
   activeChapterTitle,
-  splitFractionY,
-  partIndex,
-  totalParts,
+  startSplitFractionY,
+  endSplitFractionY,
   hasNextChapter = false,
   hasPrevChapter = false,
   isCurrentChapterCompleted = false,
@@ -165,10 +163,10 @@ function PdfViewerComponent({
 
       {/* Pages List */}
       {pageNumbers.map((pageNum) => {
-        const isEndPagePart1 =
-          pageNum === endPage && partIndex === 1 && typeof splitFractionY === "number";
-        const isStartPagePart2 =
-          pageNum === startPage && partIndex === 2 && typeof splitFractionY === "number";
+        const isStartPageSplit =
+          pageNum === startPage && typeof startSplitFractionY === "number";
+        const isEndPageSplit =
+          pageNum === endPage && typeof endSplitFractionY === "number";
 
         const aspectRatio = pageAspectRatios[pageNum] || 1.414;
         const fullPageHeight = Math.round(calculatedPageWidth * aspectRatio);
@@ -176,19 +174,24 @@ function PdfViewerComponent({
         let containerHeight: number | undefined = undefined;
         let translateYOffset = 0;
 
-        if (isEndPagePart1) {
-          containerHeight = Math.round(fullPageHeight * splitFractionY!);
-        } else if (isStartPagePart2) {
-          translateYOffset = Math.round(fullPageHeight * splitFractionY!);
-          containerHeight = Math.round(fullPageHeight * (1 - splitFractionY!));
+        if (isStartPageSplit && isEndPageSplit) {
+          translateYOffset = Math.round(fullPageHeight * startSplitFractionY!);
+          containerHeight = Math.round(
+            fullPageHeight * (endSplitFractionY! - startSplitFractionY!)
+          );
+        } else if (isStartPageSplit) {
+          translateYOffset = Math.round(fullPageHeight * startSplitFractionY!);
+          containerHeight = Math.round(fullPageHeight * (1 - startSplitFractionY!));
+        } else if (isEndPageSplit) {
+          translateYOffset = 0;
+          containerHeight = Math.round(fullPageHeight * endSplitFractionY!);
         }
 
-        const pageLabel =
-          isEndPagePart1
-            ? `Pág. ${pageNum} (1/2)`
-            : isStartPagePart2
-            ? `Pág. ${pageNum} (2/2)`
-            : `Pág. ${pageNum}`;
+        const pageLabel = isStartPageSplit
+          ? `Pág. ${pageNum} (2/2)`
+          : isEndPageSplit
+          ? `Pág. ${pageNum} (1/2)`
+          : `Pág. ${pageNum}`;
 
         return (
           <div
