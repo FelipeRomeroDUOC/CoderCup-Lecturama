@@ -171,7 +171,7 @@ export async function detectSubchaptersInRange(
       title: "1. Introducción / Comienzo",
       pageNumber: startPage,
       startPage,
-      endPage: detectedHeaders[0].pageNum - 1,
+      endPage: detectedHeaders[0].pageNum,
     });
   }
 
@@ -179,7 +179,7 @@ export async function detectSubchaptersInRange(
     const header = detectedHeaders[i];
     const nextHeader = detectedHeaders[i + 1];
     const subStart = header.pageNum;
-    const subEnd = nextHeader ? nextHeader.pageNum - 1 : endPage;
+    const subEnd = nextHeader ? nextHeader.pageNum : endPage;
 
     subchapters.push({
       id: `${idPrefix}-${i + 1}`,
@@ -228,7 +228,7 @@ export async function enrichChaptersWithSharedPageSplits(
         const viewport = page.getViewport({ scale: 1.0 });
 
         if (textContent.items && textContent.items.length > 0) {
-          // Normalize next chapter title to find matching item
+          // Clean title keywords
           const cleanNextTitle = next.title
             .toLowerCase()
             .replace(/^[0-9ivxlcdm]+[\.\-\–\—\:]\s*/i, "")
@@ -245,7 +245,8 @@ export async function enrichChaptersWithSharedPageSplits(
           for (let itemIdx = 0; itemIdx < textContent.items.length; itemIdx++) {
             const item = textContent.items[itemIdx];
             if ("str" in item && typeof item.str === "string") {
-              const strLower = item.str.toLowerCase();
+              const strLower = item.str.toLowerCase().trim();
+              if (!strLower) continue;
 
               const matchesTitle =
                 (cleanNextTitle.length > 3 && strLower.includes(cleanNextTitle)) ||
@@ -255,36 +256,39 @@ export async function enrichChaptersWithSharedPageSplits(
 
               const matchesPrefix =
                 CHAPTER_PREFIX_REGEX.test(item.str) ||
-                NUMBERED_TITLE_REGEX.test(item.str);
+                NUMBERED_TITLE_REGEX.test(item.str) ||
+                ISOLATED_ARABIC_NUM_REGEX.test(item.str) ||
+                ISOLATED_ROMAN_NUM_REGEX.test(item.str);
 
               if (matchesTitle || matchesPrefix) {
-                if (
-                  itemIdx > 0 ||
-                  (Array.isArray(item.transform) && item.transform[5] < viewport.height - 40)
-                ) {
-                  splitIndex = itemIdx;
-                  if (Array.isArray(item.transform)) {
-                    splitYFromBottom = item.transform[5];
-                  }
-                  break;
+                splitIndex = itemIdx;
+                if (Array.isArray(item.transform)) {
+                  splitYFromBottom = item.transform[5];
                 }
+                break;
               }
             }
           }
 
-          if (splitIndex > 0) {
+          if (splitIndex >= 0) {
             const topY = viewport.height - splitYFromBottom;
-            const fraction = Math.max(0.08, Math.min(0.92, (topY - 12) / viewport.height));
+            const fraction = Math.max(0.05, Math.min(0.95, (topY - 10) / viewport.height));
 
-            curr.endItemIndex = splitIndex - 1;
-            curr.splitFractionY = fraction;
-            curr.partIndex = 1;
-            curr.totalParts = 2;
+            // If header is at the very top (<= 8% of page height), previous chapter simply ends on page before
+            if (fraction <= 0.08) {
+              curr.endPage = Math.max(curr.startPage, sharedPageNum - 1);
+            } else {
+              // Real shared page split
+              curr.endItemIndex = Math.max(0, splitIndex - 1);
+              curr.splitFractionY = fraction;
+              curr.partIndex = 1;
+              curr.totalParts = 2;
 
-            next.startItemIndex = splitIndex;
-            next.splitFractionY = fraction;
-            next.partIndex = 2;
-            next.totalParts = 2;
+              next.startItemIndex = splitIndex;
+              next.splitFractionY = fraction;
+              next.partIndex = 2;
+              next.totalParts = 2;
+            }
           }
         }
       } catch (err) {

@@ -116,7 +116,7 @@ export function useChapters() {
           return items.map((item, idx) => {
             const nextItem = items[idx + 1];
             const endPage = nextItem
-              ? Math.max(item.startPage, nextItem.startPage - 1)
+              ? nextItem.startPage
               : parentEndPage;
 
             const subItems = item.items
