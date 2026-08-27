@@ -248,6 +248,7 @@ export async function enrichChaptersWithSharedPageSplits(
 
           let splitIndex = -1;
           let splitYFromBottom = viewport.height * 0.5;
+          let splitItemHeight = 18;
 
           // Search from items
           for (let itemIdx = 0; itemIdx < textContent.items.length; itemIdx++) {
@@ -273,25 +274,31 @@ export async function enrichChaptersWithSharedPageSplits(
                 if (Array.isArray(item.transform)) {
                   splitYFromBottom = item.transform[5];
                 }
+                splitItemHeight = item.height || 18;
                 break;
               }
             }
           }
 
           if (splitIndex >= 0) {
-            const topY = viewport.height - splitYFromBottom;
-            const fraction = Math.max(0.05, Math.min(0.95, (topY - 10) / viewport.height));
+            // Physical top of the header in viewport space (distance from page top)
+            const headerTopY = viewport.height - (splitYFromBottom + splitItemHeight);
 
             // If header is at the very top (<= 8% of page height), previous chapter simply ends on page before
-            if (fraction <= 0.08) {
+            if (headerTopY / viewport.height <= 0.08) {
               curr.endPage = Math.max(curr.startPage, sharedPageNum - 1);
             } else {
-              // Real shared page split: curr ends at fraction, next starts at fraction
+              // 1. Cierre del capítulo anterior (Parte 1/2):
+              // Corta ANTES del título del nuevo capítulo, dejando espacio limpio
+              const endCutY = Math.max(20, headerTopY - 14);
               curr.endItemIndex = Math.max(0, splitIndex - 1);
-              curr.endSplitFractionY = fraction;
+              curr.endSplitFractionY = Math.max(0.05, Math.min(0.95, endCutY / viewport.height));
 
+              // 2. Inicio del nuevo capítulo (Parte 2/2):
+              // Desplaza hacia arriba dejando 24px de margen blanco superior para no cortar las letras
+              const startCutY = Math.max(0, headerTopY - 24);
               next.startItemIndex = splitIndex;
-              next.startSplitFractionY = fraction;
+              next.startSplitFractionY = Math.max(0.0, Math.min(0.95, startCutY / viewport.height));
             }
           }
         }
