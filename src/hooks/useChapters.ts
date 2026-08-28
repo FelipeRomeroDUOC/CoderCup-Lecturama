@@ -89,7 +89,11 @@ export function useChapters() {
 
           for (let i = 0; i < items.length; i++) {
             const item = items[i];
-            const currentId = prefix ? `${prefix}-${i}` : `${i}`;
+            const cleanTitle = item.title?.trim();
+            // Discard empty, blank, or anonymous outline bookmarks
+            if (!cleanTitle || cleanTitle.length === 0) continue;
+
+            const currentId = prefix ? `${prefix}-${parsed.length}` : `${parsed.length}`;
             const startPage = await resolveDestinationToPage(item.dest);
 
             let subItems: RawChapterItem[] | undefined = undefined;
@@ -99,7 +103,7 @@ export function useChapters() {
 
             parsed.push({
               id: currentId,
-              title: item.title?.trim() || `Capítulo ${i + 1}`,
+              title: cleanTitle,
               startPage,
               items: subItems,
             });
