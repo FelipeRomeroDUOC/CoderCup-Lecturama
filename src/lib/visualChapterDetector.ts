@@ -237,11 +237,16 @@ export async function enrichChaptersWithSharedPageSplits(
         const viewport = page.getViewport({ scale: 1.0 });
 
         if (textContent.items && textContent.items.length > 0) {
-          // Clean title keywords
+          // Clean title keywords and segments
           const cleanNextTitle = next.title
             .toLowerCase()
             .replace(/^[0-9ivxlcdm]+[\.\-\–\—\:]\s*/i, "")
             .trim();
+
+          const titleSegments = cleanNextTitle
+            .split(/[:\-–—]/)
+            .map((s) => s.trim())
+            .filter((s) => s.length >= 3);
 
           const searchKeywords = cleanNextTitle
             .split(/\s+/)
@@ -309,13 +314,18 @@ export async function enrichChaptersWithSharedPageSplits(
 
             if (isFooterNoise) continue;
 
-            // 1. Match full title or significant keywords of the next chapter
+            // 1. Match full title or any title segment (e.g. for composite titles "A: B")
             const matchesFullTitle =
               cleanNextTitle.length > 3 && lineLower.includes(cleanNextTitle);
-            const matchesAllKeywords =
-              searchKeywords.length >= 2 && searchKeywords.every((kw) => lineLower.includes(kw));
-            const matchesSingleKeyword =
-              searchKeywords.length === 1 && lineLower.includes(searchKeywords[0]);
+            const matchesSegment = titleSegments.some(
+              (seg) => seg.length >= 4 && lineLower.includes(seg)
+            );
+            const keywordMatchesCount = searchKeywords.filter((kw) =>
+              lineLower.includes(kw)
+            ).length;
+            const matchesKeywords =
+              (searchKeywords.length >= 2 && keywordMatchesCount >= 2) ||
+              (searchKeywords.length === 1 && keywordMatchesCount === 1);
 
             // 2. If next.title has a specific chapter number (e.g. "Capítulo 4" or "4. ..."), match specifically that number
             let matchesSpecificChapterNumber = false;
@@ -330,8 +340,8 @@ export async function enrichChaptersWithSharedPageSplits(
 
             if (
               matchesFullTitle ||
-              matchesAllKeywords ||
-              matchesSingleKeyword ||
+              matchesSegment ||
+              matchesKeywords ||
               matchesSpecificChapterNumber
             ) {
               matchedLine = line;
@@ -343,8 +353,8 @@ export async function enrichChaptersWithSharedPageSplits(
             // Physical top of the header in viewport space (distance from page top)
             const headerTopY = viewport.height - (matchedLine.yFromBottom + matchedLine.height);
 
-            // If header is at the top of the page (<= 12% of page height), previous chapter simply ends on page before
-            if (headerTopY / viewport.height <= 0.12) {
+            // If header is at the top of the page (<= 14% of page height), previous chapter simply ends on page before
+            if (headerTopY / viewport.height <= 0.14) {
               curr.endPage = Math.max(curr.startPage, sharedPageNum - 1);
             } else {
               // 1. Cierre del capítulo anterior (Parte 1/2):
@@ -359,10 +369,18 @@ export async function enrichChaptersWithSharedPageSplits(
               next.startItemIndex = matchedLine.firstItemIndex;
               next.startSplitFractionY = Math.max(0.0, Math.min(0.95, startCutY / viewport.height));
             }
+          } else {
+            // If no mid-page header was found on the shared page, default curr to end on previous page
+            if (curr.startPage < next.startPage) {
+              curr.endPage = Math.max(curr.startPage, sharedPageNum - 1);
+            }
           }
         }
       } catch (err) {
         console.warn(`Error calculating shared page split for page ${sharedPageNum}:`, err);
+        if (curr.startPage < next.startPage) {
+          curr.endPage = Math.max(curr.startPage, sharedPageNum - 1);
+        }
       }
     }
   }
