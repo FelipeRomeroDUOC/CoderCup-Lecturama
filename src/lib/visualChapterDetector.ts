@@ -204,6 +204,37 @@ export async function detectVisualChapters(
   return detectSubchaptersInRange(pdfDocument, 1, totalPages, "visual");
 }
 
+const SPANISH_STOPWORDS = new Set([
+  "de",
+  "del",
+  "la",
+  "las",
+  "el",
+  "los",
+  "un",
+  "una",
+  "unos",
+  "unas",
+  "al",
+  "con",
+  "por",
+  "para",
+  "en",
+  "y",
+  "o",
+  "que",
+  "su",
+  "sus",
+  "mi",
+  "mis",
+  "tu",
+  "tus",
+  "se",
+  "lo",
+  "le",
+  "les",
+]);
+
 /**
  * Scans adjacent chapters that share the same physical PDF page (chapterN.endPage === chapterN+1.startPage)
  * and calculates the exact item boundary (startItemIndex, endItemIndex) and startSplitFractionY / endSplitFractionY.
@@ -248,9 +279,15 @@ export async function enrichChaptersWithSharedPageSplits(
             .map((s) => s.trim())
             .filter((s) => s.length >= 3);
 
+          // Extract meaningful keywords (excluding stopwords)
           const searchKeywords = cleanNextTitle
             .split(/\s+/)
-            .filter((w) => w.length >= 3);
+            .map((w) => w.replace(/[^a-záéíóúñ]/g, "").trim())
+            .filter((w) => w.length >= 3 && !SPANISH_STOPWORDS.has(w));
+
+          // If next.title has a specific chapter number (e.g. "48. Antes del amanecer" -> "48")
+          const chapterNumMatch = next.title.match(/(?:cap[ií]tulo\s+|^\s*)(\d+|[ivxlcdm]+)/i);
+          const targetChapterNum = chapterNumMatch ? chapterNumMatch[1].toLowerCase() : null;
 
           // Group items by physical line (similar Y within 6px) to handle multi-span styled titles
           interface LineGroup {
@@ -303,46 +340,59 @@ export async function enrichChaptersWithSharedPageSplits(
           let matchedLine: LineGroup | null = null;
 
           for (const line of lines) {
-            const lineLower = line.text.toLowerCase();
+            const lineTrimmed = line.text.trim();
+            const lineLower = lineTrimmed.toLowerCase();
             const yFraction = 1 - line.yFromBottom / viewport.height;
 
-            // Exclude extreme bottom footers (bottom 12%) that are just page numbers or URLs/watermarks
+            // Exclude extreme bottom footers (bottom 12%)
             const isFooterNoise =
               yFraction > 0.86 &&
-              (/^\d+$/.test(line.text.trim()) ||
-                /@|http|www|\.com|\.org|\.cl|\.es/i.test(line.text));
+              (/^\d+$/.test(lineTrimmed) ||
+                /@|http|www|\.com|\.org|\.cl|\.es/i.test(lineTrimmed));
 
             if (isFooterNoise) continue;
 
-            // 1. Match full title or any title segment (e.g. for composite titles "A: B")
-            const matchesFullTitle =
-              cleanNextTitle.length > 3 && lineLower.includes(cleanNextTitle);
-            const matchesSegment = titleSegments.some(
-              (seg) => seg.length >= 4 && lineLower.includes(seg)
-            );
-            const keywordMatchesCount = searchKeywords.filter((kw) =>
-              lineLower.includes(kw)
-            ).length;
-            const matchesKeywords =
-              (searchKeywords.length >= 2 && keywordMatchesCount >= 2) ||
-              (searchKeywords.length === 1 && keywordMatchesCount === 1);
+            // Avoid matching inline literary sentences starting with sentence punctuation or quotes
+            const startsWithSentencePunct = /^[¡¿\(\[\"\'\-\–\—\.\,\;]/.test(lineTrimmed);
+            const endsWithPunct = /[\,\;\:]$/.test(lineTrimmed) && lineTrimmed.length > 50;
 
-            // 2. If next.title has a specific chapter number (e.g. "Capítulo 4" or "4. ..."), match specifically that number
-            let matchesSpecificChapterNumber = false;
-            const chapterNumMatch = next.title.match(/(?:cap[ií]tulo\s+|^\s*)(\d+|[ivxlcdm]+)/i);
-            if (chapterNumMatch) {
-              const numStr = chapterNumMatch[1].toLowerCase();
-              const lineNumMatch = line.text.match(/(?:cap[ií]tulo\s+|^\s*)(\d+|[ivxlcdm]+)[\.\-\–\—\:\s]/i);
-              if (lineNumMatch && lineNumMatch[1].toLowerCase() === numStr) {
-                matchesSpecificChapterNumber = true;
+            // 1. If next chapter has a specific number (e.g. "48"), check if this line starts with that chapter number
+            let matchesNumber = false;
+            if (targetChapterNum) {
+              const numRegex = new RegExp(
+                `^(?:cap[ií]tulo\\s+)?${targetChapterNum}[\\.\\-\\–\\—\\:\\s]`,
+                "i"
+              );
+              if (numRegex.test(lineTrimmed)) {
+                matchesNumber = true;
               }
             }
 
+            // 2. Direct full title match
+            const matchesFullTitle =
+              cleanNextTitle.length > 3 && lineLower.includes(cleanNextTitle);
+
+            // 3. Segment match (only for valid non-sentence header lines)
+            const matchesSegment =
+              !startsWithSentencePunct &&
+              titleSegments.some((seg) => seg.length >= 4 && lineLower.includes(seg));
+
+            // 4. Meaningful keywords match (requires all non-stopword keywords, and line must look like a title)
+            const keywordMatchesCount = searchKeywords.filter((kw) =>
+              lineLower.includes(kw)
+            ).length;
+            const matchesAllKeywords =
+              !startsWithSentencePunct &&
+              !endsWithPunct &&
+              searchKeywords.length >= 1 &&
+              keywordMatchesCount === searchKeywords.length &&
+              lineTrimmed.length <= 80;
+
             if (
+              matchesNumber ||
               matchesFullTitle ||
               matchesSegment ||
-              matchesKeywords ||
-              matchesSpecificChapterNumber
+              matchesAllKeywords
             ) {
               matchedLine = line;
               break;
