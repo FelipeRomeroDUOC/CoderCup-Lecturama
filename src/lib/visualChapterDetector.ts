@@ -299,20 +299,41 @@ export async function enrichChaptersWithSharedPageSplits(
 
           for (const line of lines) {
             const lineLower = line.text.toLowerCase();
+            const yFraction = 1 - line.yFromBottom / viewport.height;
 
+            // Exclude extreme bottom footers (bottom 12%) that are just page numbers or URLs/watermarks
+            const isFooterNoise =
+              yFraction > 0.86 &&
+              (/^\d+$/.test(line.text.trim()) ||
+                /@|http|www|\.com|\.org|\.cl|\.es/i.test(line.text));
+
+            if (isFooterNoise) continue;
+
+            // 1. Match full title or significant keywords of the next chapter
             const matchesFullTitle =
               cleanNextTitle.length > 3 && lineLower.includes(cleanNextTitle);
             const matchesAllKeywords =
               searchKeywords.length >= 2 && searchKeywords.every((kw) => lineLower.includes(kw));
             const matchesSingleKeyword =
               searchKeywords.length === 1 && lineLower.includes(searchKeywords[0]);
-            const matchesPattern =
-              NUMBERED_TITLE_REGEX.test(line.text) ||
-              CHAPTER_PREFIX_REGEX.test(line.text) ||
-              ISOLATED_ARABIC_NUM_REGEX.test(line.text) ||
-              ISOLATED_ROMAN_NUM_REGEX.test(line.text);
 
-            if (matchesFullTitle || matchesAllKeywords || matchesSingleKeyword || matchesPattern) {
+            // 2. If next.title has a specific chapter number (e.g. "Capítulo 4" or "4. ..."), match specifically that number
+            let matchesSpecificChapterNumber = false;
+            const chapterNumMatch = next.title.match(/(?:cap[ií]tulo\s+|^\s*)(\d+|[ivxlcdm]+)/i);
+            if (chapterNumMatch) {
+              const numStr = chapterNumMatch[1].toLowerCase();
+              const lineNumMatch = line.text.match(/(?:cap[ií]tulo\s+|^\s*)(\d+|[ivxlcdm]+)[\.\-\–\—\:\s]/i);
+              if (lineNumMatch && lineNumMatch[1].toLowerCase() === numStr) {
+                matchesSpecificChapterNumber = true;
+              }
+            }
+
+            if (
+              matchesFullTitle ||
+              matchesAllKeywords ||
+              matchesSingleKeyword ||
+              matchesSpecificChapterNumber
+            ) {
               matchedLine = line;
               break;
             }
@@ -322,8 +343,8 @@ export async function enrichChaptersWithSharedPageSplits(
             // Physical top of the header in viewport space (distance from page top)
             const headerTopY = viewport.height - (matchedLine.yFromBottom + matchedLine.height);
 
-            // If header is at the very top (<= 8% of page height), previous chapter simply ends on page before
-            if (headerTopY / viewport.height <= 0.08) {
+            // If header is at the top of the page (<= 12% of page height), previous chapter simply ends on page before
+            if (headerTopY / viewport.height <= 0.12) {
               curr.endPage = Math.max(curr.startPage, sharedPageNum - 1);
             } else {
               // 1. Cierre del capítulo anterior (Parte 1/2):
