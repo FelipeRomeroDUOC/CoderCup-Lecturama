@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Versión](https://img.shields.io/badge/versión-1.0.0--beta.8-amber?style=for-the-badge)
+![Versión](https://img.shields.io/badge/versión-1.0.0--beta.9-amber?style=for-the-badge)
 ![Estado](https://img.shields.io/badge/estado-beta%20pública-emerald?style=for-the-badge)
 ![Next.js](https://img.shields.io/badge/Next.js-16.3-black?style=for-the-badge&logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)
@@ -40,7 +40,9 @@ El libro se divide automáticamente en capítulos que funcionan como **niveles p
   - **Persistencia local completa**: Los archivos PDF se conservan en la base de datos `IndexedDB` del navegador para reanudar la lectura sin volver a subirlos.
 - 🏆 **Celebración de Libro Conquistado ("Maestría Lectora Alcanzada")**:
   - Modal festivo al completar el 100% de los quizes de una obra, con medalla dorada e incentivo pedagógico personalizado para inspirar al usuario a comenzar un nuevo libro.
-- 📖 **Visor Continuo de PDFs**:
+- 📖 **Visor Continuo de PDFs y Unidades Virtuales de Lectura**:
+  - **Partición Intra-Página Quirúrgica**: Soporte para libros donde capítulos contiguos comparten una misma página física del PDF, recortando visualmente el final y desplazando el inicio con márgenes tipográficos de respiro sin duplicar contenido.
+  - **Fusión Inteligente de Títulos Multilínea**: Unificación automática de títulos compuestos en dos líneas y filtro de contenido mínimo para evitar capítulos vacíos.
   - Lectura vertical fluida con carga optimizada página por página mediante `Uint8Array` en memoria RAM directa (inmune a fallos de red local).
   - Totalmente adaptado para pantallas móviles, tablets y ordenadores de escritorio.
 - 🎯 **Gamificación por Niveles y Bloqueo de Capítulos**:

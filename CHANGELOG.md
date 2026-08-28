@@ -7,6 +7,30 @@ y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ---
 
+## [1.0.0-beta.9] - 2026-08-27
+
+Novena versión beta que introduce las Unidades Virtuales de Lectura para capítulos que comparten una misma página física en el PDF, fusión inteligente de títulos multilínea y filtrado avanzado de marcadores.
+
+### ✨ Añadido (Added)
+- **Unidades Virtuales de Lectura y Partición Intra-Página (Tarea 110)**:
+  - Soporte integral para libros donde el final de un capítulo y el inicio del siguiente ocurren en la misma página física del PDF (ej. *Así habló Zaratustra* y *Chilenos Increíbles*).
+  - Modelo `Chapter` con cotas desacopladas `startSplitFractionY` (apertura) y `endSplitFractionY` (cierre).
+  - Recorte visual con contenedor `overflow: hidden` y desplazamiento `translateY` en `PdfViewer` con márgenes tipográficos de respiro (`headerTopY - 8px` para cierre y `headerTopY - 6px` para apertura).
+  - Extracción quirúrgica de texto con `items.slice()` en `extractChapterText` para evitar fugas de contexto al generar quizes con Gemini.
+  - Indicadores visuales de página compartida en barra de navegación y Sidebar (`Pág. X (1/2)` y `Pág. X (2/2)`).
+- **Fusión Automática de Títulos Multilínea (`mergeSmallAndMultiLineChapters`)**:
+  - Detección y unión de encabezados de capítulos en 2 líneas consecutivas en la misma página (ej. *"El cónsul de las mil vidas: Samuel del Campo"*).
+  - Umbral de contenido mínimo ($\ge 50-60$ palabras) para consolidar fragmentos vacíos o títulos flotantes.
+
+### 🛡️ Corregido (Fixed)
+- **Eliminación de Capítulos Fantasma por Marcadores Anónimos**:
+  - Descarte automático de marcadores de índice sin título en el PDF, erradicando capítulos artificiales que cortaban prematuramente la lectura.
+- **Filtro Anti-Ruido en Pies de Página y Stopwords en Español**:
+  - Exclusión de números de página y marcas de agua inferiores para prevenir cortes falsos.
+  - Filtro de preposiciones y artículos en español (`del`, `de`, `la`, `el`, etc.) evitando que frases literarias normales se confundan con títulos de capítulos.
+
+---
+
 ## [1.0.0-beta.8] - 2026-08-26
 
 Octava versión beta que perfecciona la precisión en la evaluación de la IA mediante generación Rationale-First, validación cruzada multi-capa y compatibilidad contra extensiones de navegador.
